@@ -33,12 +33,13 @@ const ForgotPasswordOtpVerificationContainer = () => {
   return (
     <>
     <OneTimePassword
-        value={value} 
-        setValue={setValue} 
+        value={value}
+        setValue={setValue}
         onComplete={onComplete}
         isPending={isPending}
         isSuccess={isSuccess}
         error={error}
+        email={email}
     />
     </>
   )

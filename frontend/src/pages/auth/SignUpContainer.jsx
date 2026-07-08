@@ -8,7 +8,8 @@ import { useNavigate } from "react-router-dom";
 const SignUpContainer = ()=>{
 
     const [signUpForm, setSignUpFrom] = useState({
-    username: "",
+    firstName: "",
+    lastName: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -24,7 +25,7 @@ const SignUpContainer = ()=>{
   async function onSignUpFormSubmit(e){
     e.preventDefault();
     //console.log("sign up data", signUpForm);
-    if(!signUpForm.username || !signUpForm.email || !signUpForm.password || !signUpForm.confirmPassword){
+    if(!signUpForm.firstName || !signUpForm.lastName || !signUpForm.email || !signUpForm.password || !signUpForm.confirmPassword){
         //console.log("Please fill all the fields");
         setValidationErrors({
             message: "Please fill all the fields"});
@@ -49,7 +50,8 @@ const SignUpContainer = ()=>{
         navigate('/auth/otp', {
           state:{
             email: signUpForm.email,
-            username: signUpForm.username,
+            firstName: signUpForm.firstName,
+            lastName: signUpForm.lastName,
             password: signUpForm.password
           }
         });

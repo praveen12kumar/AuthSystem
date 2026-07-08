@@ -2,10 +2,11 @@ import cors from 'cors';
 import express from 'express';
 import { StatusCodes } from 'http-status-codes';
 import sanitize from 'mongo-sanitize';
-import redis from './libs/redisConfig.js';
+
 import connectDB from './config/dbConfig.js';
 import { CLIENT_URL } from './config/serverConfig.js';
 import { PORT } from './config/serverConfig.js';
+import redis from './libs/redisConfig.js';
 import apiRouter from './routes/apiRoutes.js';
 
 const app = express();
@@ -27,9 +28,10 @@ app.use(express.urlencoded({ extended: true }));
 
 /** ---------- Global sanitization (before routes) ---------- */
 app.use((req, _res, next) => {
-  // shallow sanitize; for deep objects, wrap recursively as needed
+  // mongo-sanitize mutates the object in place; reassigning req.query throws
+  // in Express 5, where req.query is a getter-only accessor.
   ['body', 'params', 'query'].forEach((k) => {
-    if (req[k]) req[k] = sanitize(req[k]);
+    if (req[k]) sanitize(req[k]);
   });
   next();
 });
@@ -43,12 +45,18 @@ app.get('/', (req, res) => {
 app.use('/api', apiRouter);
 
 
-/** ---------- Startup (fail fast) ---------- */
+/** ---------- Startup (fail fast on DB, degrade gracefully on Redis) ---------- */
 const start = async()=>{
   try {
     await connectDB();
-    await redis.ping();
-    console.log('Connected to Redis');
+
+    try {
+      await redis.ping();
+      console.log('Connected to Redis');
+    } catch (redisError) {
+      console.log('Redis unavailable, starting without it. OTP-based features (signup, forgot-password) will not work until this is fixed:', redisError.message);
+    }
+
     app.listen(PORT, ()=>{
       console.log(`Server is listening on port ${PORT}`);
     })

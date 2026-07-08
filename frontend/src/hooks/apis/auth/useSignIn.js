@@ -17,8 +17,8 @@ export const useSignIn = () =>{
             localStorage.setItem("token", response.data.token);
 
             setAuth({
-                user: response.user,
-                token: response.token,
+                user: response.data,
+                token: response.data.token,
                 isLoading: false
             });
 

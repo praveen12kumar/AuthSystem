@@ -4,7 +4,7 @@ import { StatusCodes } from "http-status-codes";
 
 import userRepository from "../repository/userRepository.js";
 import { checkOtpRestrictions, sendOtp, trackOtpRequests } from "../utils/common/authHelper.js";
-import { createJWT, hashedPassword, verifyOtp } from "../utils/common/authUtils.js";
+import { clearOtpVerified, createJWT, hashedPassword, isOtpVerified, markOtpVerified, verifyOtp } from "../utils/common/authUtils.js";
 import ClientError from "../utils/errors/clientError.js";
 import { ValidationError } from "../utils/errors/validationError.js";
 
@@ -23,10 +23,10 @@ export const signUpService = async (data) => {
     }
     await checkOtpRestrictions(data.email);
     await trackOtpRequests(data.email);
-    await sendOtp(data.username, data.email, 'user-activation-mail');
+    await sendOtp(data.firstName, data.email, 'user-activation-mail');
 
     return;
-  } 
+  }
   catch (error) {
     // Mongoose validation error (schema validators)
     if (error.name === "ValidationError") {
@@ -69,7 +69,7 @@ export const verifyUserService = async(data)=>{
     // hash the password
     const hashedPass = await hashedPassword(data.password);
 
-    const user = await userRepository.create({...data, password: hashedPass});
+    const user = await userRepository.create({...data, password: hashedPass, isVerified: true});
 
     return user;
 
@@ -120,7 +120,8 @@ export const signInService = async (data)=>{
     }
 
     return {
-      username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
       email: user.email,
       avatar: user.avatar,
       token: createJWT({id: user._id, email: user.email})
@@ -153,7 +154,7 @@ export const forgotPasswordService = async(data)=>{
 
     await checkOtpRestrictions(data.email);
     await trackOtpRequests(data.email);
-    await sendOtp(data.username, data.email, 'forgot-password-mail');
+    await sendOtp(user.firstName, data.email, 'forgot-password-mail');
 
     return;
   } catch (error) {
@@ -178,9 +179,9 @@ export const verifyOtpService = async(data)=>{
         explanation: ["Invalid data sent from the client"],
       })
     }
-    const isOtpVerified = await verifyOtp(email, otp);
-    
-    if(!isOtpVerified){
+    const otpVerified = await verifyOtp(email, otp);
+
+    if(!otpVerified){
       throw new ClientError({
         message: "Invalid OTP",
         statusCode: StatusCodes.UNAUTHORIZED,
@@ -188,7 +189,9 @@ export const verifyOtpService = async(data)=>{
       })
     }
 
-    return isOtpVerified;
+    await markOtpVerified(email);
+
+    return otpVerified;
     
   } catch (error) {
     console.log('User Service error', error);
@@ -204,6 +207,15 @@ export const verifyOtpService = async(data)=>{
 export const changePasswordService = async(data)=>{
   try {
     const {email, password} = data;
+
+    if(!(await isOtpVerified(email))){
+      throw new ClientError({
+        message: "Please verify your OTP before changing your password",
+        statusCode: StatusCodes.UNAUTHORIZED,
+        explanation: ["OTP verification required"],
+      })
+    }
+
     const user = await userRepository.getByEmail(email);
     if(!user){
       throw new ClientError({
@@ -216,6 +228,8 @@ export const changePasswordService = async(data)=>{
     const hashedPass = await hashedPassword(password);
 
     const updatedUser = await userRepository.update(user._id, {password: hashedPass});
+
+    await clearOtpVerified(email);
 
     return updatedUser;
   } catch (error) {

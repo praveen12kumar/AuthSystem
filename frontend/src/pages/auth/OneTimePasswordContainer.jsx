@@ -8,14 +8,13 @@ const OneTimePasswordContainer = () => {
   const [value, setValue] = useState("");
   const location = useLocation();
   const navigate = useNavigate();
-  const {email, username, password} = location.state || {};
+  const {email, firstName, lastName, password} = location.state || {};
 
   const {isPending, isSuccess, error, verifyEmail} = useVerifyEmail();
 
 
   const onComplete = async()=>{
-    console.log("value", value);
-    const response = await verifyEmail({email, username, password, otp: value});
+    const response = await verifyEmail({email, firstName, lastName, password, otp: value});
     console.log("response", response);
   }
 
@@ -27,13 +26,14 @@ const OneTimePasswordContainer = () => {
   
     return (
     <>
-    <OneTimePassword 
-        value={value} 
-        setValue={setValue} 
+    <OneTimePassword
+        value={value}
+        setValue={setValue}
         onComplete={onComplete}
         isPending={isPending}
         isSuccess={isSuccess}
         error={error}
+        email={email}
         />
     </>
   )

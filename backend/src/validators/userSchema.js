@@ -2,13 +2,15 @@ import {z} from 'zod';
 
 export const userSignUpSchema = z.object({
     email: z.string().regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/),
-    username: z.string().min(3).max(20),
+    firstName: z.string().min(2).max(20),
+    lastName: z.string().min(2).max(20),
     password: z.string().min(6).max(20),
 });
 
 
 export const verifyUserSchema = z.object({
-    username: z.string().min(3).max(20),
+    firstName: z.string().min(2).max(20),
+    lastName: z.string().min(2).max(20),
     email: z.string().regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/),
     otp: z.string().min(6).max(6),
     password: z.string().min(6).max(20),

@@ -9,10 +9,10 @@ import React from 'react'
 
 const ChangePassword = ({validationErrors, formInput, setFormInput, onChangePasswordFormSubmit, error, isSuccess, isPending}) => {
   return (
-    <div className='w-full h-dvh flex items-center justify-center bg-zinc-900'>
+    <div className='w-full h-full'>
       <Card className="w-full max-w-[420px] h-auto">
-        <CardHeader className="w-full text-center text-xl font-bold">
-          <CardTitle>Change Password</CardTitle>
+        <CardHeader>
+          <CardTitle className="w-full text-center text-xl font-bold">Change Password</CardTitle>
           {
                   validationErrors &&(
                     <div className="flex items-center gap-2 bg-destructive/15 rounded-md mb-4 text-destructive-foreground w-full text-red-600 text-xs p-4">

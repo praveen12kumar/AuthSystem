@@ -9,7 +9,7 @@ export const checkOtpRestrictions = async(email)=>{
 //console.log("Checking otp restrictions");
 if(await redis.get(`otp_lock:${email}`)){
     throw new ClientError({
-        message: "Too many attempts, please wait 30 minutes before trying again.",
+        message: "Too many attempts, please wait 3 minutes before trying again.",
         statusCode: StatusCodes.TOO_MANY_REQUESTS,
         explanation: ["Invalid data sent from the client"],
     })
@@ -39,7 +39,7 @@ export const trackOtpRequests = async(email)=>{
     let otpRequests = parseInt((await redis.get(otpRequestKey)) || 0)
     
     if(otpRequests >= 2){
-        await redis.set(`otp_spam_lock:${email}`, "locked", "EX", 60*60);
+        await redis.set(`otp_spam_lock:${email}`, "locked", { ex: 60*60 });
         throw new ClientError({
             message: "Too many attempts, please wait 1 hour before trying again.",
             statusCode: StatusCodes.TOO_MANY_REQUESTS,
@@ -47,7 +47,7 @@ export const trackOtpRequests = async(email)=>{
         })
     }
 
-    await redis.set(otpRequestKey, otpRequests + 1, "EX", 60*60);
+    await redis.set(otpRequestKey, otpRequests + 1, { ex: 60*60 });
 }
 
 
@@ -56,6 +56,6 @@ export const sendOtp = async(name, email, template)=>{
     //console.log("Sending otp");
     const otp = crypto.randomInt(100000,999999).toString();
     await sendEmail(email, "Verify Your Email", template, {name, otp});
-    await redis.set(`otp:${email}`, otp, "EX", 5*60);
-    await redis.set(`otp_cooldown:${email}`, "true", "EX",  60*1);
+    await redis.set(`otp:${email}`, otp, { ex: 5*60 });
+    await redis.set(`otp_cooldown:${email}`, "true", { ex: 60*1 });
 }

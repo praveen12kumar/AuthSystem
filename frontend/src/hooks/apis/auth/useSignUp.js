@@ -11,12 +11,9 @@ export const useSignUp = () => {
   } = useMutation({
     mutationFn: signUpRequest,
     onSuccess: (data) => {
-      //console.log("✅ Sign up success:", data);
-      // optional: toast.success("Account created!");
       toast.success("✅ Please verify your email! ");
     },
     onError: (err) => {
-      //console.error("❌ Sign up error:", err);
       toast.error("❌"+ err || "Something went wrong! ");
     },
   });

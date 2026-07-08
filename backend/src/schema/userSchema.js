@@ -1,18 +1,39 @@
 
 import mongoose from "mongoose";
 
-const userSchema = new mongoose.Schema({
-  username: {
+const profileSchema = new mongoose.Schema({
+  gender: {
     type: String,
-    required: [true,"Username is required"],
-    unique: [true, 'Username already exists'],
+    enum: ['male', 'female', 'other'],
+  },
+  dob: {
+    type: Date,
+  },
+  about: {
+    type: String,
     trim: true,
-    match:[/^[A-Za-z0-9]+$/, 'Username can only contain letters and numbers']
+  },
+  phoneNumber: {
+    type: String,
+    trim: true,
+  },
+}, { _id: false });
+
+const userSchema = new mongoose.Schema({
+  firstName: {
+    type: String,
+    required: [true, 'First name is required'],
+    trim: true,
+  },
+  lastName: {
+    type: String,
+    required: [true, 'Last name is required'],
+    trim: true,
   },
   email: {
     type: String,
     required: [true, 'Email is required'],
-    unique: [true, 'Email already exists'],
+    unique: true,
     trim: true,
     match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Invalid email format']
   },
@@ -25,9 +46,14 @@ const userSchema = new mongoose.Schema({
   },
   role:{
     type: String,
-    enum: ['USER', 'ADMIN'],
-    default: 'USER'
-  }
+    enum: ['ADMIN', 'INSTRUCTOR', 'STUDENT'],
+    default: 'STUDENT'
+  },
+  isVerified: {
+    type: Boolean,
+    default: false,
+  },
+  profile: profileSchema,
 }, {
   timestamps: true,
 });
@@ -35,7 +61,7 @@ const userSchema = new mongoose.Schema({
 
 userSchema.pre('save', function saveUser(next){
     const user = this;
-    user.avatar = `https://robohash.org/${user.username}`;
+    user.avatar = `https://robohash.org/${user.email}`;
     next();
 });
 

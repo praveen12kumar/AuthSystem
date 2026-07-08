@@ -1,10 +1,14 @@
 import axios from '../../config/axiosConfig.js';
 
 
-export const signUpRequest = async({username, email, password})=>{
+const getErrorMessage = (error) =>
+    error.response?.data?.message || error.message || "Something went wrong";
+
+export const signUpRequest = async({firstName, lastName, email, password})=>{
     try {
         const response = await axios.post('/api/v1/users/signup', {
-            username,
+            firstName,
+            lastName,
             email,
             password
         });
@@ -12,7 +16,7 @@ export const signUpRequest = async({username, email, password})=>{
         return response.data;
     } catch (error) {
         console.log("error is signing up",error);
-        throw error.response.data.message;
+        throw getErrorMessage(error);
     }
 }
 
@@ -27,16 +31,16 @@ export const signInRequest = async({email, password})=>{
         return response.data;
     } catch (error) {
         console.log("error in signing in",error);
-        throw error.response.data.message;
+        throw getErrorMessage(error);
     }
 }
 
 
-export const verifyEmailRequest = async({username, email, password, otp})=>{
-    console.log("username, email, password, otp",username, email, password, otp);
+export const verifyEmailRequest = async({firstName, lastName, email, password, otp})=>{
     try {
         const response = await axios.post('/api/v1/users/verify-email', {
-            username,
+            firstName,
+            lastName,
             email,
             password,
             otp
@@ -46,7 +50,7 @@ export const verifyEmailRequest = async({username, email, password, otp})=>{
 
     } catch (error) {
         console.log("error is verifing the email",error);
-        throw error.response.data.message;
+        throw getErrorMessage(error);
     }
 }
 
@@ -60,7 +64,7 @@ export const forgotPasswordRequest = async({email})=>{
 
     } catch (error) {
         console.log("error is forgot password",error);
-        throw error.response.data.message;
+        throw getErrorMessage(error);
     }
 }
 
@@ -75,7 +79,7 @@ export const verifyOtpRequest = async({email, otp})=>{
 
     } catch (error) {
         console.log("error is verifing the otp",error);
-        throw error.response.data.message;
+        throw getErrorMessage(error);
     }
 }
 
@@ -93,7 +97,7 @@ export const changePasswordRequest = async({email, password})=>{
 
     } catch (error) {
         console.log("error is changing password",error);
-        throw error.response.data.message;
+        throw getErrorMessage(error);
     }
 };
 
@@ -109,6 +113,6 @@ export const resetPasswordRequest = async({oldPassword, newPassword})=>{
 
     } catch (error) {
         console.log("error is reset password",error);
-        throw error.response.data.message;
+        throw getErrorMessage(error);
     }
 };

@@ -58,19 +58,35 @@ const SignUpCard = ({
               </CardHeader>
         <CardContent className="space-y-2">
           <form className="space-y-2" onSubmit={onSignUpFormSubmit}>
-            <div className="grid gap-1">
-              <Label htmlFor="username">Username</Label>
-              <Input
-                id="username"
-                type="text"
-                placeholder="John Doe"
-                required
-                value={signUpForm?.username}
-                onChange={(e) =>
-                  setSignUpForm({ ...signUpForm, username: e.target.value })
-                }
-                disabled={isPending}
-              />
+            <div className="grid grid-cols-2 gap-2">
+              <div className="grid gap-1">
+                <Label htmlFor="firstName">First name</Label>
+                <Input
+                  id="firstName"
+                  type="text"
+                  placeholder="John"
+                  required
+                  value={signUpForm?.firstName}
+                  onChange={(e) =>
+                    setSignUpForm({ ...signUpForm, firstName: e.target.value })
+                  }
+                  disabled={isPending}
+                />
+              </div>
+              <div className="grid gap-1">
+                <Label htmlFor="lastName">Last name</Label>
+                <Input
+                  id="lastName"
+                  type="text"
+                  placeholder="Doe"
+                  required
+                  value={signUpForm?.lastName}
+                  onChange={(e) =>
+                    setSignUpForm({ ...signUpForm, lastName: e.target.value })
+                  }
+                  disabled={isPending}
+                />
+              </div>
             </div>
             <div className="grid gap-1">
               <Label htmlFor="email">Email</Label>

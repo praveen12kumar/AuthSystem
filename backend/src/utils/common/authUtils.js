@@ -25,15 +25,15 @@ export const verifyOtp = async(email, otp)=>{
 
     if(storedOtp != otp){
         if(failedAttempts > 2){
-            await redis.set(`otp_lock:${email}`, "locked", "EX", 60*3);
+            await redis.set(`otp_lock:${email}`, "locked", { ex: 60*3 });
             await redis.del(`otp:${email}`, failedAttemptsKey);
             throw new ClientError({
-                message: "Too many attempts, please wait 30 minutes before trying again.",
+                message: "Too many attempts, please wait 3 minutes before trying again.",
                 statusCode: StatusCodes.TOO_MANY_REQUESTS,
                 explanation: ["Invalid data sent from the client"],
             });
         }
-        await redis.set(failedAttemptsKey, failedAttempts + 1, "EX", 60*5);
+        await redis.set(failedAttemptsKey, failedAttempts + 1, { ex: 60*5 });
         throw new ClientError({
             message: `Incorrect OTP. ${3 - failedAttempts} attempts left.`,
             statusCode: StatusCodes.UNAUTHORIZED,
@@ -49,4 +49,18 @@ export const verifyOtp = async(email, otp)=>{
 export const hashedPassword = async(password)=>{
     const salt = await bcrypt.genSalt(10);
     return await bcrypt.hash(password, salt);
+}
+
+// marks that an email has just passed OTP verification for a password reset;
+// change-password checks this so it can't be called without proof of OTP verification
+export const markOtpVerified = async(email)=>{
+    await redis.set(`otp_verified:${email}`, "true", { ex: 60*10 });
+}
+
+export const isOtpVerified = async(email)=>{
+    return await redis.get(`otp_verified:${email}`);
+}
+
+export const clearOtpVerified = async(email)=>{
+    await redis.del(`otp_verified:${email}`);
 }
