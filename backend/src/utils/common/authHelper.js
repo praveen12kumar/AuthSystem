@@ -55,7 +55,14 @@ export const trackOtpRequests = async(email)=>{
 export const sendOtp = async(name, email, template)=>{
     //console.log("Sending otp");
     const otp = crypto.randomInt(100000,999999).toString();
-    await sendEmail(email, "Verify Your Email", template, {name, otp});
+    const isSent = await sendEmail(email, "Verify Your Email", template, {name, otp});
+    if(!isSent){
+        throw new ClientError({
+            message: "Failed to send verification email, please try again.",
+            statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+            explanation: ["Email service failed to deliver the OTP"],
+        })
+    }
     await redis.set(`otp:${email}`, otp, { ex: 5*60 });
     await redis.set(`otp_cooldown:${email}`, "true", { ex: 60*1 });
 }

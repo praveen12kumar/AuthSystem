@@ -41,10 +41,9 @@ export const signUpService = async (data) => {
       // Try to extract the duplicate field name from keyValue (or cause.keyValue)
       const keyVal = error.keyValue ?? error?.cause?.keyValue;
       const field = keyVal ? Object.keys(keyVal)[0] : "field";
+      const message = `A user with this ${field} already exists`;
 
-      throw new ValidationError(
-        { error: [`A user with this ${field} already exists`] }
-      );
+      throw new ValidationError({ error: [message] }, message);
     }
 
     throw error;
@@ -83,10 +82,9 @@ export const verifyUserService = async(data)=>{
       // Try to extract the duplicate field name from keyValue (or cause.keyValue)
       const keyVal = error.keyValue ?? error?.cause?.keyValue;
       const field = keyVal ? Object.keys(keyVal)[0] : "field";
+      const message = `A user with this ${field} already exists`;
 
-      throw new ValidationError(
-        { error: [`A user with this ${field} already exists`] }
-      );
+      throw new ValidationError({ error: [message] }, message);
     }
 
     throw error;

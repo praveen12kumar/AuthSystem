@@ -6,7 +6,7 @@ const courseProgressSchema = new mongoose.Schema({
     ref: "User",
     required: [true, "User is required"],
   },
-  course: {
+  courseID: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Course",
     required: [true, "Course is required"],

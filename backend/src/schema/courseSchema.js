@@ -41,6 +41,20 @@ const courseSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "Tag",
   }],
+  reviews: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Review",
+  }],
+  averageRating: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 5,
+  },
+  numberOfRatings: {
+    type: Number,
+    default: 0,
+  },
 }, {
   timestamps: true,
 });

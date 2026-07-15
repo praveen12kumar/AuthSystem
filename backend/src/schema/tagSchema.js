@@ -1,19 +1,26 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
-const tagSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: [true, "Name is required"],
-    unique: true,
-    trim: true,
+const tagSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: [true, 'Name is required'],
+      unique: true,
+      trim: true
+    },
+    description: {
+      type: String
+    },
+    course: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Course'
+    }
   },
-  description: {
-    type: String,
-  },
-}, {
-  timestamps: true,
-});
+  {
+    timestamps: true
+  }
+);
 
-const Tag = mongoose.model("Tag", tagSchema);
+const Tag = mongoose.model('Tag', tagSchema);
 
 export default Tag;
