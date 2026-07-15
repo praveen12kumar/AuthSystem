@@ -23,3 +23,12 @@ export const createCourseSchema = z.object({
   discount: z.coerce.number().min(0).max(100).optional(),
   tags: tagsFromFormField
 });
+
+// All fields optional - thumbnail (via req.file) and tags stay unchanged if omitted.
+export const updateCourseSchema = z.object({
+  title: z.string().min(3).max(100).optional(),
+  description: z.string().min(10).optional(),
+  price: z.coerce.number().min(0).optional(),
+  discount: z.coerce.number().min(0).max(100).optional(),
+  tags: tagsFromFormField.optional()
+});

@@ -64,32 +64,50 @@
   Don't check `req.user.role` by hand inside a controller — see `tags.js` for the
   reference pattern.
 - **Client-supplied Mongoose ids** (route params like `:id`): a malformed id throws a
-  Mongoose `CastError`. Service functions that take an id from a route param should
-  catch `error.name === 'CastError'` and rewrap it as a `ClientError` (400), the same way
-  `ValidationError`/duplicate-key (`11000`) are handled — see `tagService.js`'s
-  `handleTagError` for the pattern. This wasn't needed in `userService.js` because every
-  id there comes from the JWT, not directly from client input.
-- **Referencing another domain's ids in a request body** (e.g. Course's `tags` array):
-  Zod only validates shape (well-formed ObjectId string), not existence. The service
-  layer must additionally look the ids up via that domain's repository (e.g.
-  `tagRepository.findByIds`) and reject if any are missing, before creating/updating the
-  referencing document — see `createCourseService` for the reference pattern.
+  `CastError`. Catch `error.name === 'CastError'` and rewrap as a `ClientError` (400),
+  same as `ValidationError`/duplicate-key (`11000`) — see `tagService.js`'s
+  `handleTagError`. Not needed in `userService.js`, whose ids all come from the JWT.
+- **Referencing another domain's ids in a request body** (e.g. Course's `tags`): Zod
+  only validates shape, not existence — the service must also look the ids up via that
+  domain's repository (`tagRepository.findByIds`) and reject any that are missing, see
+  `createCourseService`.
 - **Arrays that must be non-empty**: don't rely on Mongoose's `required` — it's a no-op
   on arrays (see the Invariants note in `architecture-context.md`). Use a custom
   `validate` function on the schema field, and mirror it with `.min(1)` in the
   corresponding Zod schema so bad requests are rejected before hitting the DB.
 - **Routes that accept a file**: chain `uploadSingle(fieldName)` → `requireFile(fieldName)`
-  (if the file is required) → `validate(zodSchema)` → controller, in that order (see
-  `routes/v1/courses.js`). Upload the file to Cloudinary from the **service** layer via
-  `utils/common/imageUpload.js`'s `uploadImageToCloudinary`, not from the controller —
-  same rule as any other external-dependency call. The corresponding Zod schema must use
-  `z.coerce.number()` for numeric fields and JSON-string + `z.preprocess()` for array
-  fields, since multipart text fields are always strings — see
-  `validators/courseSchema.js`.
+  (only if required) → `validate(zodSchema)` → controller (see `routes/v1/courses.js`).
+  Upload to Cloudinary from the **service** layer, never the controller. The Zod schema
+  needs `z.coerce.number()` for numeric fields and JSON-string + `z.preprocess()` for
+  arrays, since multipart text fields are always strings — see `validators/courseSchema.js`.
 - **Denormalized back-references** (e.g. `User.courses` mirroring `Course.instructor`):
-  update via a dedicated repository method using an atomic `$push`
-  (`userRepository.addCourse`), never a fetch-the-array-then-save round trip — avoids
-  clobbering concurrent writes to the same array.
+  update via a dedicated repository method using an atomic `$push`/`$pull`
+  (`userRepository.addCourse`/`removeCourse`), never a fetch-the-array-then-save round
+  trip — avoids clobbering concurrent writes to the same array.
+- **Cascading deletes**: when a parent's delete should remove its children (deleting a
+  Course removes its Sections), do it in the service with a dedicated repository method
+  (`sectionRepository.deleteByCourse`), not a per-child loop — and do it before deleting
+  the parent itself.
+- **Best-effort external cleanup**: an operation on an external service (deleting an old
+  Cloudinary image after a successful replace/delete) must never fail the primary
+  operation that already succeeded in the DB. Wrap it in a helper that catches and logs
+  its own errors (`safeDeleteCloudinaryImage` in `courseService.js`) rather than letting
+  it propagate through the normal error-handling path.
+- **Ownership checks** (a resource belongs to a specific user, not just "some role"):
+  write a concrete middleware per way the owning resource is resolved, chained after
+  `isAuthenticated` (+ `validate()` only if it needs `req.body` shape-confirmed first).
+  `isCourseOwnerOrAdmin` resolves via `req.body.course || req.params.id` (Section create
+  vs. Course update/delete — one function, since both cases are "does req.user own
+  *this* course," just sourced from two request locations). `isSectionOwnerOrAdmin` is a
+  genuinely different resolution path (no course id anywhere; look up the section by
+  `req.params.id` first) and stays separate — don't force every ownership case into one
+  parameterized factory, but do reuse one function across call sites that are checking
+  the exact same thing from a different request field.
+- **Listing a sub-resource by its parent** (e.g. Sections of a Course): use a query
+  param on the flat route (`GET /sections?course=<id>`), not a nested route
+  (`/courses/:id/sections`) — keeps every domain's router flat and consistent with
+  Tag/Course, rather than mixing two routing styles. The query param name matches the
+  FK field name (`course`, not `courseId`).
 
 ## Frontend (`frontend/src`)
 

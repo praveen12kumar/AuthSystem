@@ -16,6 +16,15 @@ const userRepository = {
             { new: true }
         );
         return response;
+    },
+
+    removeCourse: async function (userId, courseId) {
+        const response = await User.findByIdAndUpdate(
+            userId,
+            { $pull: { courses: courseId } },
+            { new: true }
+        );
+        return response;
     }
 };
 

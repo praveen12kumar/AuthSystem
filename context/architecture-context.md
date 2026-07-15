@@ -23,13 +23,15 @@ Client (React) --axios--> /api/v1/* (Express) --> service layer --> repository l
                                                  \-> Cloudinary (image storage, via service layer)
 ```
 
-- Request layering is strict and consistently followed for the User, Tag, and Course
-  domains: `route → validate(zodSchema) middleware → controller → service → repository →
+- Request layering is strict and consistently followed for User, Tag, Course, and
+  Section: `route → validate(zodSchema) middleware → controller → service → repository →
   Mongoose model`. Controllers never call Mongoose directly.
-- Course currently only has create + read (list/detail) — no update/delete yet (deferred:
-  those involve extra rules like enrolled-student impact and price-change handling that
-  don't belong in the same unit as basic creation).
-- Section/SubSection/Review/Payment/CourseProgress models exist but have no
+- Course and Section both have full CRUD now. (Course delete cascades to its Sections —
+  see Invariants. The "enrolled-student impact" concern that originally deferred Course
+  update/delete is currently moot: no enrollment/payment domain is implemented yet, so
+  there's nothing to protect against a price/content change — revisit once Payment or
+  CourseProgress get built.)
+- SubSection/Review/Payment/CourseProgress models exist but have no
   service/repository/controller/route layer yet — only the Mongoose schema exists for
   these today.
 
@@ -73,10 +75,22 @@ Client (React) --axios--> /api/v1/* (Express) --> service layer --> repository l
   `AuthContext` (not an Axios interceptor).
 - **Role-based authorization**: `authorize(...allowedRoles)` in `authMiddleware.js`
   (added alongside the Tag domain) checks `req.user.role` against an allow-list and must
-  run after `isAuthenticated` on the same route (it depends on `req.user` being set).
-  Returns 403 if the role doesn't match. This is the first use of role-based route
-  protection in the codebase — apply it to any route that should be restricted beyond
-  "logged in," rather than checking `req.user.role` ad hoc inside a controller.
+  run after `isAuthenticated` on the same route. Returns 403 if the role doesn't match.
+  Apply it to any route restricted beyond "logged in," rather than checking
+  `req.user.role` ad hoc inside a controller.
+- **Ownership authorization**: two concrete middlewares (not a generic factory — see
+  `code-standards.md`), both requiring `req.user.id === course.instructor` OR
+  `req.user.role === 'ADMIN'`, both handling their own `CastError` for a malformed id:
+  - `isCourseOwnerOrAdmin` resolves the course from `req.body?.course || req.params.id` —
+    the former for Section create (must run after `validate()`, since that's what
+    shape-confirms `req.body.course`), the latter for Course update/delete (the route
+    param *is* the course id directly, no body dependency). `req.body` really can be
+    `undefined` here (not `{}`) for a pure multipart request with no text fields, since
+    Express's body-parsers never touch multipart content — confirmed live when a
+    thumbnail-only Course update 500'd before the optional-chaining fix.
+  - `isSectionOwnerOrAdmin` is for Section update/delete: no course id anywhere in the
+    request, so it looks up the section from `req.params.id` first, then that section's
+    course.
 
 ## File Upload Model
 
@@ -101,41 +115,34 @@ Client (React) --axios--> /api/v1/* (Express) --> service layer --> repository l
 Only things whose violation is a bug — not preferences:
 
 - Controllers never call Mongoose models directly; only services/repositories do.
-- Every mutating route that changes user-owned data must run through `validate(zodSchema)`
-  before the controller executes.
+- Every mutating route runs through `validate(zodSchema)` before the controller executes.
 - Passwords are never logged, returned in an API response, or embedded in a JWT payload.
-- `req.user` is only trustworthy after `isAuthenticated` middleware has run — do not read
-  `req.user` on a route that doesn't apply that middleware.
+- `req.user` is only trustworthy after `isAuthenticated` has run.
 - OTP verification state lives only in Redis; it must never be persisted to MongoDB.
-- All Mongoose FK fields referencing `Course` are named `course` (not `courseID` /
-  other variants) — `courseProgressSchema.js` currently violates this
-  (uses `courseID`, and its unique index incorrectly references a `course` field that
-  doesn't exist on that schema) and needs fixing; see `progress-tracker.md`.
-- Only `ADMIN`/`INSTRUCTOR` roles may create/update/delete a Tag; any request (including
-  anonymous) may read tags. Enforced via `isAuthenticated` + `authorize('ADMIN',
-  'INSTRUCTOR')` on the write routes in `routes/v1/tags.js` — don't add a Tag write route
-  without both.
-- Same role gate applies to Course creation (`routes/v1/courses.js`); reads are public.
-  `course.instructor` is always set server-side from `req.user.id`, never accepted from
-  the request body.
-- A Course must have a `thumbnail`. Enforced at the route (`requireFile('thumbnail')`
-  before the controller runs) and again at the Mongoose level (`required: true` on the
-  schema field — unlike arrays, `required` works correctly for a plain `String` field).
-- A Course must reference at least one existing Tag id. Enforced twice: Zod
-  (`createCourseSchema.tags.min(1)`, shape only) and the service layer
-  (`courseService.js` checks every submitted id actually exists via
-  `tagRepository.findByIds`) — a well-formed but nonexistent tag id is rejected before
-  the course is created.
-- Creating a course must push its id onto the instructor's `User.courses` array
-  (`userRepository.addCourse`, `$push`, not a fetch-then-save) — the reverse of
-  `course.instructor`. The two writes aren't wrapped in a Mongoose transaction (none are
-  used anywhere in this codebase), so a failure between them is a known, accepted gap,
-  not something to fix by adding transactions here alone.
+- All Mongoose FK fields referencing `Course` are named `course` (not `courseID`) —
+  `courseProgressSchema.js` currently violates this (uses `courseID`, and its unique
+  index incorrectly references a `course` field that doesn't exist on that schema) and
+  needs fixing; see `progress-tracker.md`.
+- Only `ADMIN`/`INSTRUCTOR` may write to Tag, Course, or Section (role gate on every
+  write route); reads are public for all three. Course/Section writes additionally
+  require course ownership (see Auth Model above) — `ADMIN` bypasses ownership too.
+  `course.instructor` is always set server-side from `req.user.id`, never from the body.
+- A Course must have a `thumbnail` (Mongoose `required` + route-level `requireFile` on
+  create) and at least one existing Tag id (Zod shape-check + a service-layer existence
+  check via `tagRepository.findByIds` — a well-formed but nonexistent tag id is rejected).
+- **Denormalized back-references sync via `$push`/`$pull`, never fetch-then-save**:
+  creating a Course pushes onto `User.courses`; creating a Section pushes onto
+  `Course.sections`. Deleting reverses each with `$pull`, and deleting a Course first
+  cascades to delete every Section referencing it (`sectionRepository.deleteByCourse`).
+  None of this is wrapped in a transaction (none are used anywhere in this codebase) — a
+  failure mid-sequence is a known, accepted gap.
+- **Cloudinary cleanup is always best-effort**: `safeDeleteCloudinaryImage` swallows its
+  own errors — an old thumbnail is deleted only *after* the replacing DB write succeeds,
+  and a failed cleanup must never undo an otherwise-successful create/update/delete.
 - **Mongoose `required` on an array field never enforces "at least one element"**
   (verified empirically) — arrays default to `[]`, which always satisfies `required`'s
   null/undefined check. Use a custom `validate: (arr) => arr.length > 0` function
-  instead, as `courseSchema.js`'s `tags` field now does (see `code-standards.md` for the
-  reusable convention).
+  instead (see `code-standards.md` for the reusable convention).
 
 ## Architecture Decisions
 

@@ -1,25 +1,25 @@
 import { StatusCodes } from 'http-status-codes';
 
 import {
-  createCourseService,
-  deleteCourseService,
-  getAllCoursesService,
-  getCourseByIdService,
-  updateCourseService
-} from '../services/courseService.js';
+  createSectionService,
+  deleteSectionService,
+  getSectionByIdService,
+  getSectionsByCourseService,
+  updateSectionService
+} from '../services/sectionService.js';
 import {
   customErrorResponse,
   internalErrorResponse,
   successResponse
 } from '../utils/common/responseObject.js';
 
-// create course
-export const createCourse = async (req, res) => {
+// create section
+export const createSection = async (req, res) => {
   try {
-    const response = await createCourseService(req.body, req.user.id, req.file);
+    const response = await createSectionService(req.body);
     return res
       .status(StatusCodes.CREATED)
-      .json(successResponse(response, 'Course created successfully'));
+      .json(successResponse(response, 'Section created successfully'));
   } catch (error) {
     if (error.statusCode) {
       return res.status(error.statusCode).json(customErrorResponse(error));
@@ -30,13 +30,13 @@ export const createCourse = async (req, res) => {
   }
 };
 
-// get all courses
-export const getAllCourses = async (req, res) => {
+// get sections by course
+export const getSectionsByCourse = async (req, res) => {
   try {
-    const response = await getAllCoursesService();
+    const response = await getSectionsByCourseService(req.query.course);
     return res
       .status(StatusCodes.OK)
-      .json(successResponse(response, 'Courses fetched successfully'));
+      .json(successResponse(response, 'Sections fetched successfully'));
   } catch (error) {
     if (error.statusCode) {
       return res.status(error.statusCode).json(customErrorResponse(error));
@@ -47,13 +47,13 @@ export const getAllCourses = async (req, res) => {
   }
 };
 
-// get course by id
-export const getCourseById = async (req, res) => {
+// get section by id
+export const getSectionById = async (req, res) => {
   try {
-    const response = await getCourseByIdService(req.params.id);
+    const response = await getSectionByIdService(req.params.id);
     return res
       .status(StatusCodes.OK)
-      .json(successResponse(response, 'Course fetched successfully'));
+      .json(successResponse(response, 'Section fetched successfully'));
   } catch (error) {
     if (error.statusCode) {
       return res.status(error.statusCode).json(customErrorResponse(error));
@@ -64,13 +64,13 @@ export const getCourseById = async (req, res) => {
   }
 };
 
-// update course
-export const updateCourse = async (req, res) => {
+// update section
+export const updateSection = async (req, res) => {
   try {
-    const response = await updateCourseService(req.params.id, req.body, req.file);
+    const response = await updateSectionService(req.params.id, req.body);
     return res
       .status(StatusCodes.OK)
-      .json(successResponse(response, 'Course updated successfully'));
+      .json(successResponse(response, 'Section updated successfully'));
   } catch (error) {
     if (error.statusCode) {
       return res.status(error.statusCode).json(customErrorResponse(error));
@@ -81,13 +81,13 @@ export const updateCourse = async (req, res) => {
   }
 };
 
-// delete course
-export const deleteCourse = async (req, res) => {
+// delete section
+export const deleteSection = async (req, res) => {
   try {
-    await deleteCourseService(req.params.id);
+    await deleteSectionService(req.params.id);
     return res
       .status(StatusCodes.OK)
-      .json(successResponse({}, 'Course deleted successfully'));
+      .json(successResponse({}, 'Section deleted successfully'));
   } catch (error) {
     if (error.statusCode) {
       return res.status(error.statusCode).json(customErrorResponse(error));

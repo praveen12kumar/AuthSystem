@@ -14,3 +14,10 @@ export function uploadImageToCloudinary(file, folder, height, quality) {
   const base64File = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
   return cloudinary.uploader.upload(base64File, options);
 }
+
+export function deleteImageFromCloudinary(publicId) {
+  if (!publicId) {
+    return Promise.resolve();
+  }
+  return cloudinary.uploader.destroy(publicId);
+}

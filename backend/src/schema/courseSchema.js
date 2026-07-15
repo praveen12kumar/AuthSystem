@@ -25,6 +25,9 @@ const courseSchema = new mongoose.Schema({
     type: String,
     required: [true, "Thumbnail is required"],
   },
+  thumbnailPublicId: {
+    type: String,
+  },
   instructor: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
