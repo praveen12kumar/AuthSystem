@@ -14,11 +14,12 @@ customization lives in `frontend/src/index.css`.
 ## Design Tokens
 
 All color tokens are OKLCH, defined in `frontend/src/index.css` as CSS custom
-properties, with light values under `:root` and dark overrides under `.dark`. This is
-still the **stock, unmodified shadcn default theme** — every token is a zero-chroma gray
-except `--destructive` and the five `--chart-*` colors. No brand colors have been chosen
-yet; when they are, add them here as the new canonical values, don't hardcode hex/oklch
-values inline in components.
+properties, with light values under `:root` and dark overrides under `.dark`. The brand
+color is a violet (`oklch(... 271.9)` hue) applied to `--primary`, `--accent`, and
+`--ring` in both light and dark mode — every other token (`secondary`, `muted`, `border`,
+etc.) stays zero-chroma gray on purpose (brand accent only, not a full re-theme). Treat
+this as the canonical brand color: don't hardcode hex/oklch values inline in components,
+add new brand-related tokens here instead.
 
 - Radius scale: base `--radius: 0.625rem`, with `--radius-sm/md/lg/xl` derived from it
   in the `@theme inline` block. Use the Tailwind radius utilities (`rounded-md`, etc.),
@@ -31,18 +32,33 @@ values inline in components.
 
 ## Typography
 
-The "Outfit" Google Font is imported at the top of `index.css` but **is not currently
-wired into any `font-family` token** — no `--font-sans` override exists in the `@theme`
-block, so it's not actually applied globally yet. Treat this as an open item, not a
-convention to follow: don't assume Outfit is the active font until a `--font-sans` token
-is added.
+The "Outfit" Google Font is imported at the top of `index.css` **and is wired in** via
+`--font-sans: 'Outfit', ui-sans-serif, system-ui, sans-serif;` in the `@theme inline`
+block — it's the active global sans font.
+
+## Animation
+
+`framer-motion` is a project dependency for animation beyond what Tailwind's
+`tw-animate-css` utility classes cover (page-load stagger, accordion/list mount-exit).
+Import `motion` aliased as `Motion` (`import { motion as Motion } from 'framer-motion'`)
+— the flat ESLint config's `no-unused-vars` only auto-exempts capitalized identifiers
+(`varsIgnorePattern: '^[A-Z_]'`), and `motion.div`/`motion.header` etc. used only inside
+JSX tags aren't otherwise recognized as "used" without `eslint-plugin-react`. Components
+imported and used as JSX elements normally (`Button`, `AnimatePresence`) don't need this
+since they're already capitalized.
 
 ## Layout Patterns
 
-- Auth pages share one layout shell (`pages/auth/Auth.jsx`): renders `Header` and
-  centers its `children`. Applied by wrapping the page's JSX manually per-route
-  (`<Auth><XContainer/></Auth>`), not via a react-router layout route — follow this
-  pattern for new shared layouts rather than introducing nested router layouts.
+- `Header` (`components/molecules/header/Header.jsx`) is `sticky top-0`, not absolutely
+  positioned — every page renders it inline as a normal flex child, including
+  `pages/auth/Auth.jsx`'s shared shell (`<Header/>` then centered `children` below it).
+  It's auth-aware: shows Sign In/Get Started when logged out, an avatar dropdown (Sign
+  Out, Change Password, and — only for `INSTRUCTOR`/`ADMIN` — a Dashboard link) when
+  logged in.
+- Route-level role gating: `ProtectedRoute` (`components/molecules/protectRoute/`)
+  accepts an optional `roles` array prop; if the logged-in user's role isn't in it,
+  redirect to `/` instead of rendering. Use this for any route beyond "must be logged
+  in" (e.g. `/instructor/*`) rather than checking `auth.user.role` inside the page.
 - Container/presentational split: route-level `*Container.jsx` pages own state and
   data-fetching hooks; `components/organisms/<domain>/*` are the props-driven views they
   render. See `code-standards.md` for the naming convention (no `Card` suffix going

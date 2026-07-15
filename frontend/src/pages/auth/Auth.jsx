@@ -1,12 +1,15 @@
-import Header from "@/components/molecules/header/Header";
-import React from "react";
+import React from 'react';
+
+import Header from '@/components/molecules/header/Header';
 
 const Auth = ({children}) => {
   return (
-    <div className="h-dvh flex flex-col items-center justify-center  bg-zinc-300">
+    <div className="min-h-dvh flex flex-col bg-muted/40">
       <Header/>
-      <div className="md:h-auto md:w-[420px]">
-        {children}
+      <div className="flex flex-1 items-center justify-center p-4">
+        <div className="w-full md:w-[420px]">
+          {children}
+        </div>
       </div>
     </div>
   );

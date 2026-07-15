@@ -2,10 +2,13 @@
 
 ## Current Phase
 
-Auth, Tag, Course, and Section are all functionally complete end-to-end (backend), full
-CRUD on every one. SubSection/Payment/Review/CourseProgress domains have Mongoose models
-only — no repository/service/controller/route layer yet. Deliberately backend-first for
-now (frontend UI for Tag/Course/Section is untouched) — see Session Notes.
+Auth, Tag, Course, and Section are functionally complete end-to-end, backend **and**
+frontend now. Students can browse/search the course catalog and view a course's
+curriculum; instructors can create/edit/delete courses (with thumbnail + tags) and
+manage a course's sections, all through real UI. SubSection/Payment/Review/CourseProgress
+domains still have Mongoose models only — no repository/service/controller/route/UI layer
+yet. Enrollment/checkout is intentionally a disabled "coming soon" affordance on the
+course detail page, not a real flow — Payment isn't wired up.
 
 ## Completed
 
@@ -48,6 +51,17 @@ now (frontend UI for Tag/Course/Section is untouched) — see Session Notes.
   there's no course id in those requests) — deliberately two concrete middlewares, not
   one generalized factory, see `code-standards.md`. Create pushes the new section id
   onto `Course.sections`; delete `$pull`s it back out (`courseRepository.removeSection`).
+- Frontend for Tag/Course/Section: brand color (violet) + Outfit font wired into
+  `index.css` (see `ui-context.md`), `framer-motion` added for animation. New pages:
+  `Home` (hero + featured courses + browse-by-tag), `CourseCatalogContainer` (search +
+  tag filter), `CourseDetailContainer` (curriculum accordion, sticky enroll card),
+  `InstructorDashboardContainer` (my courses, role-gated via `ProtectedRoute`'s new
+  `roles` prop), `CourseFormContainer` (create/edit with thumbnail preview + tag
+  multi-select + inline tag creation) and its embedded `SectionManager` (add/rename/
+  delete sections). `Header` redesigned: sticky, auth-aware nav with an avatar dropdown.
+  Live-verified end-to-end against the real backend/Cloudinary (mint-JWT + temporary
+  role elevation on a real account, reverted after; all test data cleaned up and cascade
+  delete re-confirmed).
 
 ## In Progress
 
@@ -58,17 +72,17 @@ now (frontend UI for Tag/Course/Section is untouched) — see Session Notes.
 
 ## Next Up
 
-Pick one (per `ai-workflow-rules.md` scoping rule — one at a time). Decided to keep
-building backend before frontend for now:
+Pick one (per `ai-workflow-rules.md` scoping rule — one at a time):
 - SubSection authoring under a Section (instructor content creation) — note
   `subSectionSchema.js`'s `videoUrl`/`duration` fields will need a video-upload design
   decision (Cloudinary video upload + auto-derived duration vs. a plain URL string +
   manual duration) before implementation, same shape of question as Course's thumbnail
-- Course search/filter (by tag, price, instructor) — currently `GET /courses` has no
-  query params
-- Payments & checkout (wire up the `Payment` model into a real purchase flow)
+- Course search/filter is currently client-side only (catalog page filters an
+  already-fetched full course list) — `GET /courses` has no server-side query params;
+  revisit if the catalog needs to scale past fetch-everything
+- Payments & checkout (wire up the `Payment` model into a real purchase flow) — the
+  course detail page's "Enroll" button is a placeholder toast today
 - Student enrollment action
-- Frontend UI for Tag/Course/Section (nothing built yet on the frontend for any of them)
 
 ## Open Questions
 
@@ -105,6 +119,10 @@ Architecture Decisions section — the four decisions above are agreed standards
 existing code doesn't fully follow yet. Don't "fix" them opportunistically mid-unrelated
 task; they were deliberately deferred to a dedicated cleanup pass (see Open Questions).
 
-Explicit choice: keep building backend domains (Section done; SubSection next) before
-touching the frontend at all — the frontend is currently only exercised for Auth. Don't
-suggest switching to frontend work unprompted; it's a known gap, not an oversight.
+Backend-first phase is over: user explicitly greenlit frontend work ("free hand...
+surprise me") and Tag/Course/Section now have real UI (see Completed). This was verified
+via production build (`npm run build`), scoped ESLint passes on every touched file, and
+a live authenticated pass against the real backend/Cloudinary/Mongo (mint-JWT approach,
+cleaned up after) — not a browser-rendered visual check, since no browser-automation
+tool was available in that session. If something looks visually off, that's the first
+place to check.

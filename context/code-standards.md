@@ -115,9 +115,9 @@
   - `apis/<domain>/index.js` — raw Axios calls, one file per domain. Each function
     wraps `axios.<verb>` in try/catch and re-throws a plain string message (extracted via
     a local `getErrorMessage`), not an `Error` object.
-  - `hooks/apis/<domain>/use<Action>.js` — one `useMutation` wrapper per API call,
-    following the existing template: destructure `{isPending, isSuccess, error,
-    mutateAsync}`, show a `react-hot-toast` toast in both `onSuccess`/`onError`.
+  - `hooks/apis/<domain>/use<Name>.js` — one hook per API call (`useMutation` for
+    writes, `useQuery` for reads — see Data Fetching below), a `react-hot-toast` toast
+    in mutation `onSuccess`/`onError`.
   - `hooks/context/use<Name>.js` — thin `useContext` wrappers.
   - `pages/<domain>/<Name>Container.jsx` — route-level components that own state and
     call hooks/mutations.
@@ -139,11 +139,27 @@
   route groups rather than introducing nested routes.
 - **Auth-gated routes**: wrap in `<ProtectedRoute>` from
   `components/molecules/protectRoute/ProtectedRoute.jsx`.
-- **Data fetching**: TanStack React Query for all server state. Use `useMutation` for
-  writes (current pattern); when read endpoints are added, use `useQuery` with the same
-  one-hook-per-call convention.
-- No CSS Modules — Tailwind utility classes only, plus the shadcn CSS-variable tokens in
-  `index.css`.
+- **Data fetching**: TanStack React Query for all server state. Query keys are
+  `["tags"]` / `["courses"]` / `["course", id]` / `["sections", courseId]`; mutations
+  invalidate the relevant key(s) in `onSuccess` (see `useCreateCourse.js`). When a
+  mutation needs a parent id purely to invalidate the right key (e.g.
+  `useUpdateSection`/`useDeleteSection` need `course` to invalidate
+  `["sections", courseId]`), the caller passes it alongside the real payload and the API
+  wrapper simply ignores the extra field — don't thread it through as a real request
+  parameter.
+- **Backend doesn't `.populate()` refs**: Course/Section responses carry raw ObjectId
+  strings for `tags`/`instructor`, not embedded documents. Resolve tag names client-side
+  by fetching the full tag list once (`useTags`) and building an id→name map; there's no
+  public endpoint to resolve an instructor's name from an id, so course cards/detail
+  pages don't display an instructor name (see `CourseCard`/`CourseDetail`).
+- **Course/Section multipart writes**: `createCourseRequest`/`updateCourseRequest`
+  (`apis/course/index.js`) build a `FormData` from a plain object (`buildCourseFormData`)
+  — `tags` must be `JSON.stringify`'d before appending, matching the backend's
+  `z.preprocess()` expectation. Don't call these with a plain JSON object.
+- **Price display is USD-only, presentational**: the `Course` schema has no currency
+  field, just a `Number`. `CourseCard`/`CourseDetail`/`InstructorDashboard` hardcode a
+  `$` prefix — this is a display assumption, not a stored/validated currency; revisit if
+  multi-currency is ever needed.
 
 ## Cross-cutting
 
