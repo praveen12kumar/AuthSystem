@@ -74,3 +74,18 @@ export const isAuthenticated = async (req, res, next) => {
       .json(internalErrorResponse(error));
   }
 };
+
+// Must run after isAuthenticated - relies on req.user.role being set.
+export const authorize = (...allowedRoles) => {
+  return (req, res, next) => {
+    if (!req.user || !allowedRoles.includes(req.user.role)) {
+      return res.status(StatusCodes.FORBIDDEN).json(
+        customErrorResponse({
+          explanation: `Requires one of the following roles: ${allowedRoles.join(", ")}`,
+          message: "You do not have permission to perform this action",
+        })
+      );
+    }
+    return next();
+  };
+};

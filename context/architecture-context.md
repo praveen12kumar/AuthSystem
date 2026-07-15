@@ -20,12 +20,13 @@ Client (React) --axios--> /api/v1/* (Express) --> service layer --> repository l
                                                  \-> nodemailer (transactional email)
 ```
 
-- Request layering is strict and consistently followed for the User domain:
+- Request layering is strict and consistently followed for the User and Tag domains:
   `route → validate(zodSchema) middleware → controller → service → repository → Mongoose model`.
   Controllers never call Mongoose directly.
-- Course/Section/SubSection/Tag/Review/Payment/CourseProgress models exist but have no
+- Course/Section/SubSection/Review/Payment/CourseProgress models exist but have no
   service/repository/controller/route layer yet — only the Mongoose schema exists for
-  these today.
+  these today. Tag was built first (see `progress-tracker.md`) because Course requires
+  at least one Tag to exist.
 
 ## Storage Model
 
@@ -65,6 +66,12 @@ Client (React) --axios--> /api/v1/* (Express) --> service layer --> repository l
 - Frontend stores `{ user, token }` in `localStorage` (not cookies) and mirrors the
   token onto the shared Axios instance's default headers via a `useEffect` in
   `AuthContext` (not an Axios interceptor).
+- **Role-based authorization**: `authorize(...allowedRoles)` in `authMiddleware.js`
+  (added alongside the Tag domain) checks `req.user.role` against an allow-list and must
+  run after `isAuthenticated` on the same route (it depends on `req.user` being set).
+  Returns 403 if the role doesn't match. This is the first use of role-based route
+  protection in the codebase — apply it to any route that should be restricted beyond
+  "logged in," rather than checking `req.user.role` ad hoc inside a controller.
 
 ## Invariants
 
@@ -81,6 +88,10 @@ Only things whose violation is a bug — not preferences:
   other variants) — `courseProgressSchema.js` currently violates this
   (uses `courseID`, and its unique index incorrectly references a `course` field that
   doesn't exist on that schema) and needs fixing; see `progress-tracker.md`.
+- Only `ADMIN`/`INSTRUCTOR` roles may create/update/delete a Tag; any request (including
+  anonymous) may read tags. Enforced via `isAuthenticated` + `authorize('ADMIN',
+  'INSTRUCTOR')` on the write routes in `routes/v1/tags.js` — don't add a Tag write route
+  without both.
 
 ## Architecture Decisions
 

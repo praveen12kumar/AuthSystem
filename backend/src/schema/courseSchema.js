@@ -40,6 +40,7 @@ const courseSchema = new mongoose.Schema({
   tags: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: "Tag",
+    required: [true, "At least one tag is required"],
   }],
   reviews: [{
     type: mongoose.Schema.Types.ObjectId,

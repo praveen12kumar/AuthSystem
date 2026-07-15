@@ -2,8 +2,10 @@
 
 ## Current Phase
 
-Auth is functionally complete (backend + frontend). Course/Payment/Review/CourseProgress
-domains have Mongoose models only — no repository/service/controller/route layer yet.
+Auth and Tag are functionally complete end-to-end (backend). Course/Payment/Review/
+CourseProgress domains have Mongoose models only — no repository/service/controller/
+route layer yet. Tag was built first because Course creation requires at least one
+existing Tag to attach.
 
 ## Completed
 
@@ -11,9 +13,14 @@ domains have Mongoose models only — no repository/service/controller/route lay
   backed by JWT + Redis-based OTP state machine.
 - Frontend auth UI: signin/signup/OTP/forgot/change/reset password pages, protected
   route, `AuthContext` + `useAuth`, React Query mutation hooks per auth action.
-- Context system set up (this session): `project-overview.md`, `architecture-context.md`,
+- Context system set up: `project-overview.md`, `architecture-context.md`,
   `code-standards.md`, `ui-context.md`, `ai-workflow-rules.md`, this tracker, and root
   `CLAUDE.md` index.
+- Tag CRUD API (backend only — no frontend yet): `repository/tagRepository.js`,
+  `services/tagService.js`, `validators/tagSchema.js`, `controller/tagController.js`,
+  `routes/v1/tags.js`, mounted at `/api/v1/tags`. Reads are public; writes require
+  `isAuthenticated` + the new `authorize('ADMIN', 'INSTRUCTOR')` middleware (first use of
+  role-based route protection in the codebase — see `architecture-context.md`).
 
 ## In Progress
 
@@ -24,11 +31,20 @@ domains have Mongoose models only — no repository/service/controller/route lay
 
 ## Next Up
 
-Pick one vertical slice, not all three at once (per `ai-workflow-rules.md` scoping
-rule):
+Frontend Tag UI (list/create for instructors) is the natural next slice, then pick one
+of (per `ai-workflow-rules.md` scoping rule — one at a time, not all three):
 - Course browsing & enrollment (read side: list/search/detail + enroll action)
 - Course creation (instructor authoring: course → section → subsection)
 - Payments & checkout (wire up the `Payment` model into a real purchase flow)
+
+## Known Bugs
+
+- `courseSchema.js`'s `tags` field (`required: [true, ...]` on the array element) does
+  **not** enforce "Course must have at least one tag" — an empty `tags: []` currently
+  passes Mongoose validation (verified directly: `validateSync()` on an empty array
+  produces no error). Needs a real min-length check (e.g. a custom `validate` function)
+  when Course write endpoints are built — don't assume the existing `required` already
+  covers this.
 
 ## Open Questions
 

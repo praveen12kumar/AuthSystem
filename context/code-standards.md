@@ -53,6 +53,17 @@
 - FK fields referencing another model are named after the singular lowercase model name
   (`course`, `user`) — not `<name>ID`. See Architecture Decisions for the one known
   exception being fixed (`courseProgressSchema`'s `courseID`).
+- **Authorization beyond "logged in"**: use `authorize(...allowedRoles)` from
+  `authMiddleware.js` on the route, chained after `isAuthenticated`
+  (`isAuthenticated, authorize('ADMIN', 'INSTRUCTOR'), validate(schema), controllerFn`).
+  Don't check `req.user.role` by hand inside a controller — see `tags.js` for the
+  reference pattern.
+- **Client-supplied Mongoose ids** (route params like `:id`): a malformed id throws a
+  Mongoose `CastError`. Service functions that take an id from a route param should
+  catch `error.name === 'CastError'` and rewrap it as a `ClientError` (400), the same way
+  `ValidationError`/duplicate-key (`11000`) are handled — see `tagService.js`'s
+  `handleTagError` for the pattern. This wasn't needed in `userService.js` because every
+  id there comes from the JWT, not directly from client input.
 
 ## Frontend (`frontend/src`)
 
