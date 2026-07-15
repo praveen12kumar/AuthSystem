@@ -38,6 +38,11 @@
   schema/model definitions, which enforce DB-level constraints (`required`, `enum`,
   `unique`, `match`) on save/update. Both layers can reject the same input for different
   reasons — that's expected, not a bug to unify.
+- `validate(schema)` (`validators/zodValidators.js`) reassigns `req.body` to the
+  **parsed** result, not just pass/fail — so `z.coerce`/`.preprocess`/`.transform` in a
+  schema actually take effect downstream, and unknown fields get stripped (Zod's default
+  `z.object()` behavior). Controllers and services always see the validated/coerced
+  shape, never the raw request body.
 - **Errors**: throw `ClientError` (generic 400-class error) or `ValidationError`
   (normalizes validation failures into a flat message list) from
   `utils/errors/`. Every controller catches these itself today — there is no centralized
@@ -64,6 +69,27 @@
   `ValidationError`/duplicate-key (`11000`) are handled — see `tagService.js`'s
   `handleTagError` for the pattern. This wasn't needed in `userService.js` because every
   id there comes from the JWT, not directly from client input.
+- **Referencing another domain's ids in a request body** (e.g. Course's `tags` array):
+  Zod only validates shape (well-formed ObjectId string), not existence. The service
+  layer must additionally look the ids up via that domain's repository (e.g.
+  `tagRepository.findByIds`) and reject if any are missing, before creating/updating the
+  referencing document — see `createCourseService` for the reference pattern.
+- **Arrays that must be non-empty**: don't rely on Mongoose's `required` — it's a no-op
+  on arrays (see the Invariants note in `architecture-context.md`). Use a custom
+  `validate` function on the schema field, and mirror it with `.min(1)` in the
+  corresponding Zod schema so bad requests are rejected before hitting the DB.
+- **Routes that accept a file**: chain `uploadSingle(fieldName)` → `requireFile(fieldName)`
+  (if the file is required) → `validate(zodSchema)` → controller, in that order (see
+  `routes/v1/courses.js`). Upload the file to Cloudinary from the **service** layer via
+  `utils/common/imageUpload.js`'s `uploadImageToCloudinary`, not from the controller —
+  same rule as any other external-dependency call. The corresponding Zod schema must use
+  `z.coerce.number()` for numeric fields and JSON-string + `z.preprocess()` for array
+  fields, since multipart text fields are always strings — see
+  `validators/courseSchema.js`.
+- **Denormalized back-references** (e.g. `User.courses` mirroring `Course.instructor`):
+  update via a dedicated repository method using an atomic `$push`
+  (`userRepository.addCourse`), never a fetch-the-array-then-save round trip — avoids
+  clobbering concurrent writes to the same array.
 
 ## Frontend (`frontend/src`)
 

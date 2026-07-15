@@ -7,6 +7,15 @@ const userRepository = {
     getByEmail: async function (email) {
         const response = await User.findOne({ email: email });
         return response;
+    },
+
+    addCourse: async function (userId, courseId) {
+        const response = await User.findByIdAndUpdate(
+            userId,
+            { $push: { courses: courseId } },
+            { new: true }
+        );
+        return response;
     }
 };
 

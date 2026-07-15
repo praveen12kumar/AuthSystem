@@ -9,8 +9,10 @@
 - **Cache/rate-limiting**: Upstash Redis (REST client, not `ioredis`) — used only for
   OTP state, not for sessions or general caching.
 - **Email**: `nodemailer` + `ejs` templates (OTP, password reset).
-- **Planned, not yet wired up**: `multer` + `cloudinary` (course content/file upload),
-  `swagger-autogen` (API docs) — installed but no code references them yet `[INFERRED: intent]`.
+- **File upload**: `multer` (memory storage, not disk) + `cloudinary` (image storage/CDN)
+  — wired up for Course `thumbnail`; see File Upload Model below.
+- **Planned, not yet wired up**: `swagger-autogen` (API docs) — installed but no code
+  references it yet `[INFERRED: intent]`.
 
 ## System Boundaries
 
@@ -18,15 +20,18 @@
 Client (React) --axios--> /api/v1/* (Express) --> service layer --> repository layer --> Mongoose models --> MongoDB
                                                  \-> Redis (OTP state only)
                                                  \-> nodemailer (transactional email)
+                                                 \-> Cloudinary (image storage, via service layer)
 ```
 
-- Request layering is strict and consistently followed for the User and Tag domains:
-  `route → validate(zodSchema) middleware → controller → service → repository → Mongoose model`.
-  Controllers never call Mongoose directly.
-- Course/Section/SubSection/Review/Payment/CourseProgress models exist but have no
+- Request layering is strict and consistently followed for the User, Tag, and Course
+  domains: `route → validate(zodSchema) middleware → controller → service → repository →
+  Mongoose model`. Controllers never call Mongoose directly.
+- Course currently only has create + read (list/detail) — no update/delete yet (deferred:
+  those involve extra rules like enrolled-student impact and price-change handling that
+  don't belong in the same unit as basic creation).
+- Section/SubSection/Review/Payment/CourseProgress models exist but have no
   service/repository/controller/route layer yet — only the Mongoose schema exists for
-  these today. Tag was built first (see `progress-tracker.md`) because Course requires
-  at least one Tag to exist.
+  these today.
 
 ## Storage Model
 
@@ -73,6 +78,24 @@ Client (React) --axios--> /api/v1/* (Express) --> service layer --> repository l
   protection in the codebase — apply it to any route that should be restricted beyond
   "logged in," rather than checking `req.user.role` ad hoc inside a controller.
 
+## File Upload Model
+
+- `multer` (`memoryStorage`, 5MB limit, image-mimetype filter — `req.file.buffer`, never
+  written to disk) → Cloudinary, configured once in `libs/cloudinaryConfig.js` from the
+  three `CLOUDINARY_*` vars in `config/serverConfig.js`.
+  `utils/common/imageUpload.js`'s `uploadImageToCloudinary` base64-encodes the buffer and
+  uploads directly (no temp-file cleanup needed); call it from the **service** layer,
+  same as any other external-dependency call (Redis, nodemailer).
+- **Route order**: `uploadSingle(fieldName)` → `requireFile(fieldName)` (if required) →
+  `validate(zodSchema)` → controller. `uploadSingle` must run first — it populates
+  `req.body` from the multipart stream, which `validate` then reads. `uploadSingle`
+  formats its own 400 on failure (multer reports errors via callback, not a throw, so a
+  controller's try/catch never sees them) — same self-contained-error-handling pattern
+  as `validate()` itself.
+- Any route accepting a file is `multipart/form-data`, not JSON: numeric fields need
+  `z.coerce.number()`, array fields need a JSON-encoded string + `z.preprocess` (HTML
+  forms can't carry real arrays) — see `validators/courseSchema.js`.
+
 ## Invariants
 
 Only things whose violation is a bug — not preferences:
@@ -92,23 +115,39 @@ Only things whose violation is a bug — not preferences:
   anonymous) may read tags. Enforced via `isAuthenticated` + `authorize('ADMIN',
   'INSTRUCTOR')` on the write routes in `routes/v1/tags.js` — don't add a Tag write route
   without both.
+- Same role gate applies to Course creation (`routes/v1/courses.js`); reads are public.
+  `course.instructor` is always set server-side from `req.user.id`, never accepted from
+  the request body.
+- A Course must have a `thumbnail`. Enforced at the route (`requireFile('thumbnail')`
+  before the controller runs) and again at the Mongoose level (`required: true` on the
+  schema field — unlike arrays, `required` works correctly for a plain `String` field).
+- A Course must reference at least one existing Tag id. Enforced twice: Zod
+  (`createCourseSchema.tags.min(1)`, shape only) and the service layer
+  (`courseService.js` checks every submitted id actually exists via
+  `tagRepository.findByIds`) — a well-formed but nonexistent tag id is rejected before
+  the course is created.
+- Creating a course must push its id onto the instructor's `User.courses` array
+  (`userRepository.addCourse`, `$push`, not a fetch-then-save) — the reverse of
+  `course.instructor`. The two writes aren't wrapped in a Mongoose transaction (none are
+  used anywhere in this codebase), so a failure between them is a known, accepted gap,
+  not something to fix by adding transactions here alone.
+- **Mongoose `required` on an array field never enforces "at least one element"**
+  (verified empirically) — arrays default to `[]`, which always satisfies `required`'s
+  null/undefined check. Use a custom `validate: (arr) => arr.length > 0` function
+  instead, as `courseSchema.js`'s `tags` field now does (see `code-standards.md` for the
+  reusable convention).
 
 ## Architecture Decisions
 
 - **Bearer token is the auth-header standard, not `x-access-token`.**
-  Why: `Authorization: Bearer` is the conventional header for JWT auth and is what the
-  backend middleware already prefers; `x-access-token` only exists today because the
-  frontend was wired to it first. Frontend needs to switch — tracked as an open item,
-  not done yet.
+  Why: conventional JWT header, already preferred by the backend middleware. Frontend
+  still sends `x-access-token` — not yet migrated.
 - **FK fields referencing Course are named `course`, not `courseID`.**
-  Why: majority of existing models (`payment`, `review`, `section`) already use `course`;
-  standardizing on the majority avoids touching more files than necessary.
+  Why: matches the majority of existing models (payment, review, section).
 - **`schema/` will be renamed to `models/` (not yet done).**
-  Why: files in `backend/src/schema/` are Mongoose models, not schemas in the Zod sense —
-  the current name collides in meaning with `backend/src/validators/userSchema.js`, which
-  really is a schema (a Zod validation schema). Renaming to `models/` removes the
-  ambiguity at the folder level.
+  Why: `schema/*.js` files are Mongoose models, not Zod schemas — the name collides with
+  `validators/userSchema.js`, which really is one.
 - **No centralized Express error-handling middleware yet.** Every controller repeats an
-  identical try/catch. This is documented as the current convention in
-  `code-standards.md`, not treated as broken — but flagged as a candidate refactor if the
-  duplication becomes painful as more domains (course, payment) get their own controllers.
+  identical try/catch (documented convention in `code-standards.md`, not treated as
+  broken) — candidate refactor if the duplication gets painful as more domains grow
+  their own controllers.

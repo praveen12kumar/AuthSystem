@@ -23,6 +23,7 @@ const courseSchema = new mongoose.Schema({
   },
   thumbnail: {
     type: String,
+    required: [true, "Thumbnail is required"],
   },
   instructor: {
     type: mongoose.Schema.Types.ObjectId,
@@ -37,11 +38,16 @@ const courseSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "Section",
   }],
-  tags: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Tag",
-    required: [true, "At least one tag is required"],
-  }],
+  tags: {
+    type: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Tag",
+    }],
+    validate: {
+      validator: (arr) => Array.isArray(arr) && arr.length > 0,
+      message: "At least one tag is required",
+    },
+  },
   reviews: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: "Review",
