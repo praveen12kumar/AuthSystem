@@ -23,17 +23,14 @@ Client (React) --axios--> /api/v1/* (Express) --> service layer --> repository l
                                                  \-> Cloudinary (image storage, via service layer)
 ```
 
-- Request layering is strict and consistently followed for User, Tag, Course, and
-  Section: `route → validate(zodSchema) middleware → controller → service → repository →
-  Mongoose model`. Controllers never call Mongoose directly.
-- Course and Section both have full CRUD now. (Course delete cascades to its Sections —
-  see Invariants. The "enrolled-student impact" concern that originally deferred Course
-  update/delete is currently moot: no enrollment/payment domain is implemented yet, so
-  there's nothing to protect against a price/content change — revisit once Payment or
-  CourseProgress get built.)
-- SubSection/Review/Payment/CourseProgress models exist but have no
-  service/repository/controller/route layer yet — only the Mongoose schema exists for
-  these today.
+- Request layering is strict and consistently followed for User, Tag, Course, Section,
+  and SubSection: `route → validate(zodSchema) middleware → controller → service →
+  repository → Mongoose model`. Controllers never call Mongoose directly.
+- Course and Section both have full CRUD. SubSection has create + read only so far
+  (mirrors how Course/Section themselves were staged) — update/delete, plus the
+  Cloudinary video cleanup that'll need, are a follow-up unit.
+- Review/Payment/CourseProgress models exist but have no service/repository/controller/
+  route layer yet — only the Mongoose schema exists for these today.
 
 ## Storage Model
 
@@ -80,34 +77,42 @@ Client (React) --axios--> /api/v1/* (Express) --> service layer --> repository l
   run after `isAuthenticated` on the same route. Returns 403 if the role doesn't match.
   Apply it to any route restricted beyond "logged in," rather than checking
   `req.user.role` ad hoc inside a controller.
-- **Ownership authorization**: two concrete middlewares (not a generic factory — see
-  `code-standards.md`), both requiring `req.user.id === course.instructor` OR
-  `req.user.role === 'ADMIN'`, both handling their own `CastError` for a malformed id:
+- **Ownership authorization**: concrete middlewares (not a generic factory — see
+  `code-standards.md`), all ultimately requiring `req.user.id === course.instructor` OR
+  `req.user.role === 'ADMIN'`, each handling its own `CastError` for a malformed id:
   - `isCourseOwnerOrAdmin` resolves the course from `req.body?.course || req.params.id` —
-    the former for Section create (must run after `validate()`, since that's what
-    shape-confirms `req.body.course`), the latter for Course update/delete (the route
-    param *is* the course id directly, no body dependency). `req.body` really can be
-    `undefined` here (not `{}`) for a pure multipart request with no text fields, since
-    Express's body-parsers never touch multipart content — confirmed live when a
-    thumbnail-only Course update 500'd before the optional-chaining fix.
-  - `isSectionOwnerOrAdmin` is for Section update/delete: no course id anywhere in the
-    request, so it looks up the section from `req.params.id` first, then that section's
-    course.
+    the former for Section create (must run after `validate()`), the latter for Course
+    update/delete. `req.body` really can be `undefined` here (not `{}`) for a pure
+    multipart request with no text fields — confirmed live when a thumbnail-only Course
+    update 500'd before an optional-chaining fix.
+  - `isSectionOwnerOrAdmin` (Section update/delete) looks up the section from
+    `req.params.id` first, then that section's course.
+  - `isSubSectionOwnerOrAdmin` (SubSection create) resolves via `req.body.section` →
+    that Section → its course, one hop deeper than `isSectionOwnerOrAdmin`.
 
 ## File Upload Model
 
-- `multer` (`memoryStorage`, 5MB limit, image-mimetype filter — `req.file.buffer`, never
-  written to disk) → Cloudinary, configured once in `libs/cloudinaryConfig.js` from the
-  three `CLOUDINARY_*` vars in `config/serverConfig.js`.
-  `utils/common/imageUpload.js`'s `uploadImageToCloudinary` base64-encodes the buffer and
-  uploads directly (no temp-file cleanup needed); call it from the **service** layer,
-  same as any other external-dependency call (Redis, nodemailer).
-- **Route order**: `uploadSingle(fieldName)` → `requireFile(fieldName)` (if required) →
-  `validate(zodSchema)` → controller. `uploadSingle` must run first — it populates
-  `req.body` from the multipart stream, which `validate` then reads. `uploadSingle`
-  formats its own 400 on failure (multer reports errors via callback, not a throw, so a
-  controller's try/catch never sees them) — same self-contained-error-handling pattern
-  as `validate()` itself.
+- `multer` (`memoryStorage`, never written to disk) → Cloudinary, configured once in
+  `libs/cloudinaryConfig.js` from the three `CLOUDINARY_*` vars in `config/serverConfig.js`.
+  **Must import `cloudinaryPkg.v2`, not the package's default export** — the `cloudinary`
+  npm package's default is its legacy v1 API, which silently ignores `resource_type` and
+  always uploads as an image (confirmed live: a real video upload with
+  `resource_type: 'video'` failed "Invalid image file" under the default import, and
+  succeeded with the correct `duration` once switched to `.v2`).
+- Two separate multer instances in `uploadMiddleware.js`: `uploadSingle` (images, 5MB,
+  `image/*` filter) and `uploadVideoSingle` (videos, 100MB, `video/*` filter) — different
+  limits/filters, so don't share one instance. Both format their own 400 on failure
+  (multer reports errors via callback, not a throw) and both pair with the same
+  `requireFile(fieldName)`.
+- `utils/common/imageUpload.js` / `videoUpload.js` base64-encode the buffer and upload
+  directly (no temp-file cleanup needed); call from the **service** layer, same as any
+  other external-dependency call. Video uploads pass `resource_type: 'video'` and read
+  `duration` (seconds) straight from Cloudinary's response — never client-supplied (see
+  Invariants).
+- **Route order**: `uploadSingle`/`uploadVideoSingle` → `requireFile` (if required) →
+  `validate(zodSchema)` → ownership middleware (if any) → controller. The upload
+  middleware must run first — it populates `req.body` from the multipart stream, which
+  `validate` then reads, and ownership checks need the validated body.
 - Any route accepting a file is `multipart/form-data`, not JSON: numeric fields need
   `z.coerce.number()`, array fields need a JSON-encoded string + `z.preprocess` (HTML
   forms can't carry real arrays) — see `validators/courseSchema.js`.
@@ -145,6 +150,9 @@ Only things whose violation is a bug — not preferences:
   (verified empirically) — arrays default to `[]`, which always satisfies `required`'s
   null/undefined check. Use a custom `validate: (arr) => arr.length > 0` function
   instead (see `code-standards.md` for the reusable convention).
+- **A lesson's `duration` is always Cloudinary-derived, never accepted from the client**
+  — `createSubSectionSchema` has no `duration` field at all; the service reads it off
+  the video upload response. Don't add a manual-duration input on the frontend.
 
 ## Architecture Decisions
 

@@ -3,11 +3,10 @@
 ## Current Phase
 
 Auth, Tag, Course, and Section are functionally complete end-to-end, backend **and**
-frontend now. Students can browse/search the course catalog and view a course's
-curriculum; instructors can create/edit/delete courses (with thumbnail + tags) and
-manage a course's sections, all through real UI. SubSection/Payment/Review/CourseProgress
-domains still have Mongoose models only — no repository/service/controller/route/UI layer
-yet. Enrollment/checkout is intentionally a disabled "coming soon" affordance on the
+frontend. SubSection now has create + read (backend and frontend both): instructors
+upload a real lesson video per section, students watch it inline on the course detail
+page. SubSection update/delete, plus Payment/Review/CourseProgress, are still open (see
+Next Up). Enrollment/checkout is intentionally a disabled "coming soon" affordance on the
 course detail page, not a real flow — Payment isn't wired up.
 
 ## Completed
@@ -19,11 +18,10 @@ course detail page, not a real flow — Payment isn't wired up.
 - Context system set up: `project-overview.md`, `architecture-context.md`,
   `code-standards.md`, `ui-context.md`, `ai-workflow-rules.md`, this tracker, and root
   `CLAUDE.md` index.
-- Tag CRUD API (backend only — no frontend yet): `repository/tagRepository.js`,
-  `services/tagService.js`, `validators/tagSchema.js`, `controller/tagController.js`,
-  `routes/v1/tags.js`, mounted at `/api/v1/tags`. Reads are public; writes require
-  `isAuthenticated` + the new `authorize('ADMIN', 'INSTRUCTOR')` middleware (first use of
-  role-based route protection in the codebase — see `architecture-context.md`).
+- Tag, full CRUD, backend and frontend (create is exposed inline via `CreateTagDialog`
+  during course authoring; no standalone tag-management page). Reads public; writes
+  require `authorize('ADMIN', 'INSTRUCTOR')` — the first role-based route protection in
+  the codebase.
 - Course, full CRUD: `repository/courseRepository.js`, `services/courseService.js`,
   `validators/courseSchema.js`, `controller/courseController.js`, `routes/v1/courses.js`,
   mounted at `/api/v1/courses`. Reads are public; writes require `ADMIN`/`INSTRUCTOR` +
@@ -71,6 +69,27 @@ course detail page, not a real flow — Payment isn't wired up.
   which were always `undefined`). Fixed by adding both fields to the returned object;
   verified live against the real `/signin` endpoint with a throwaway test user (deleted
   after).
+- SubSection (lesson) create + read, backend and frontend: `repository/
+  subSectionRepository.js`, `services/subSectionService.js`, `validators/
+  subSectionSchema.js`, `controller/subSectionController.js`, `routes/v1/subsections.js`,
+  mounted at `/api/v1/subsections`. Video uploads via a dedicated `uploadVideoSingle`
+  multer instance (100MB, `video/*`) and `utils/common/videoUpload.js`
+  (`resource_type: 'video'`); `duration` is always Cloudinary-derived, never
+  client-supplied (resolved the open design question from last session). Ownership via
+  the new `isSubSectionOwnerOrAdmin` (resolves `req.body.section` → Section → Course).
+  Frontend: `LessonManager` (instructor, embedded per-section in `SectionManager`, upload
+  form + lesson list) and `LessonList` (student, inside `CourseDetail`'s curriculum
+  accordion, click-to-play inline `<video>`).
+  **Found and fixed a real bug**: `libs/cloudinaryConfig.js` imported the `cloudinary`
+  package's default export, which is its legacy **v1** API — it silently ignores
+  `resource_type` and always uploads as an image (a real video upload failed "Invalid
+  image file" until switched to `cloudinaryPkg.v2`). Diagnosed by hitting the Cloudinary
+  SDK directly outside Express, confirmed with a genuinely valid test video (encoded via
+  Playwright's bundled ffmpeg + a `jpeg-js`-encoded frame, since no video tooling exists
+  natively in this environment). Fully live-verified after the fix: real video upload
+  through the real UI, correct auto-derived duration, playback confirmed in a headless
+  browser (`readyState: 4`), plus a regression check that image thumbnail upload still
+  works. All test data cleaned up (Cloudinary assets, DB records, temporary role grant).
 
 ## In Progress
 
@@ -82,10 +101,9 @@ course detail page, not a real flow — Payment isn't wired up.
 ## Next Up
 
 Pick one (per `ai-workflow-rules.md` scoping rule — one at a time):
-- SubSection authoring under a Section (instructor content creation) — note
-  `subSectionSchema.js`'s `videoUrl`/`duration` fields will need a video-upload design
-  decision (Cloudinary video upload + auto-derived duration vs. a plain URL string +
-  manual duration) before implementation, same shape of question as Course's thumbnail
+- SubSection update/delete (rename a lesson, replace its video, remove it) — mirrors how
+  Course/Section update/delete followed their own create+read units. Will need the same
+  best-effort Cloudinary video cleanup pattern as Course's thumbnail.
 - Course search/filter is currently client-side only (catalog page filters an
   already-fetched full course list) — `GET /courses` has no server-side query params;
   revisit if the catalog needs to scale past fetch-everything
@@ -129,9 +147,16 @@ existing code doesn't fully follow yet. Don't "fix" them opportunistically mid-u
 task; they were deliberately deferred to a dedicated cleanup pass (see Open Questions).
 
 Backend-first phase is over: user explicitly greenlit frontend work ("free hand...
-surprise me") and Tag/Course/Section now have real UI (see Completed). This was verified
-via production build (`npm run build`), scoped ESLint passes on every touched file, and
-a live authenticated pass against the real backend/Cloudinary/Mongo (mint-JWT approach,
-cleaned up after) — not a browser-rendered visual check, since no browser-automation
-tool was available in that session. If something looks visually off, that's the first
-place to check.
+surprise me") and Tag/Course/Section/SubSection now have real UI (see Completed).
+
+**Playwright is available for real browser verification** (no project-level run skill
+exists yet — installed fresh into the scratchpad dir each time via `npm install
+playwright` + `npx playwright install chromium`, not added to either package.json).
+Mint a JWT directly (`jsonwebtoken.sign({id, email, role}, JWT_SECRET)`, no password
+needed) and either call the API directly for backend checks, or seed `localStorage`
+(`user`/`token` keys, matching `AuthContext`'s shape exactly) via
+`context.addInitScript()` before navigating, for frontend checks under a real role. This
+approach has now caught two real bugs that curl-only testing missed: the `signInService`
+missing `id`/`role`, and the Cloudinary v1/v2 default-export bug — both were invisible to
+API-shape testing alone because they only mattered once the actual browser/UI/SDK path
+was exercised. Keep reaching for it before calling a frontend change done.

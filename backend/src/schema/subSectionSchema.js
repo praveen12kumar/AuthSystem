@@ -13,6 +13,9 @@ const subSectionSchema = new mongoose.Schema({
     type: String,
     required: [true, "Video URL is required"],
   },
+  videoPublicId: {
+    type: String,
+  },
   duration: {
     type: Number,
     required: [true, "Duration is required"],

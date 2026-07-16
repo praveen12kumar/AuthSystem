@@ -75,11 +75,14 @@
   on arrays (see the Invariants note in `architecture-context.md`). Use a custom
   `validate` function on the schema field, and mirror it with `.min(1)` in the
   corresponding Zod schema so bad requests are rejected before hitting the DB.
-- **Routes that accept a file**: chain `uploadSingle(fieldName)` → `requireFile(fieldName)`
-  (only if required) → `validate(zodSchema)` → controller (see `routes/v1/courses.js`).
-  Upload to Cloudinary from the **service** layer, never the controller. The Zod schema
-  needs `z.coerce.number()` for numeric fields and JSON-string + `z.preprocess()` for
-  arrays, since multipart text fields are always strings — see `validators/courseSchema.js`.
+- **Routes that accept a file**: chain `uploadSingle`/`uploadVideoSingle(fieldName)` →
+  `requireFile(fieldName)` (only if required) → `validate(zodSchema)` → controller (see
+  `routes/v1/courses.js`, `routes/v1/subsections.js`). Upload to Cloudinary from the
+  **service** layer, never the controller. The Zod schema needs `z.coerce.number()` for
+  numeric fields and JSON-string + `z.preprocess()` for arrays, since multipart text
+  fields are always strings — see `validators/courseSchema.js`. A server-derived field
+  (like a video's `duration`) has **no** Zod field at all — it never comes from the
+  client, so there's nothing to validate.
 - **Denormalized back-references** (e.g. `User.courses` mirroring `Course.instructor`):
   update via a dedicated repository method using an atomic `$push`/`$pull`
   (`userRepository.addCourse`/`removeCourse`), never a fetch-the-array-then-save round
@@ -98,11 +101,12 @@
   `isAuthenticated` (+ `validate()` only if it needs `req.body` shape-confirmed first).
   `isCourseOwnerOrAdmin` resolves via `req.body.course || req.params.id` (Section create
   vs. Course update/delete — one function, since both cases are "does req.user own
-  *this* course," just sourced from two request locations). `isSectionOwnerOrAdmin` is a
-  genuinely different resolution path (no course id anywhere; look up the section by
-  `req.params.id` first) and stays separate — don't force every ownership case into one
-  parameterized factory, but do reuse one function across call sites that are checking
-  the exact same thing from a different request field.
+  *this* course," just sourced from two request locations). `isSectionOwnerOrAdmin`
+  (Section update/delete) and `isSubSectionOwnerOrAdmin` (SubSection create, via
+  `req.body.section`) are each a genuinely different resolution path (one more hop up
+  the Section→Course chain) and stay separate — don't force every ownership case into
+  one parameterized factory, but do reuse one function across call sites checking the
+  exact same thing from a different request field.
 - **Listing a sub-resource by its parent** (e.g. Sections of a Course): use a query
   param on the flat route (`GET /sections?course=<id>`), not a nested route
   (`/courses/:id/sections`) — keeps every domain's router flat and consistent with
@@ -140,7 +144,8 @@
 - **Auth-gated routes**: wrap in `<ProtectedRoute>` from
   `components/molecules/protectRoute/ProtectedRoute.jsx`.
 - **Data fetching**: TanStack React Query for all server state. Query keys are
-  `["tags"]` / `["courses"]` / `["course", id]` / `["sections", courseId]`; mutations
+  `["tags"]` / `["courses"]` / `["course", id]` / `["sections", courseId]` /
+  `["subsections", sectionId]`; mutations
   invalidate the relevant key(s) in `onSuccess` (see `useCreateCourse.js`). When a
   mutation needs a parent id purely to invalidate the right key (e.g.
   `useUpdateSection`/`useDeleteSection` need `course` to invalidate

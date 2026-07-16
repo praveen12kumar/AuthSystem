@@ -1,14 +1,9 @@
 import { motion as Motion } from 'framer-motion';
-import {
-  Layers,
-  Pencil,
-  PlayCircle,
-  ShoppingCart,
-  Star
-} from 'lucide-react';
+import { Layers, Pencil, ShoppingCart, Star } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
 
+import LessonList from '@/components/organisms/course/LessonList';
 import {
   Accordion,
   AccordionContent,
@@ -144,12 +139,7 @@ const CourseDetail = ({
                       </span>
                     </AccordionTrigger>
                     <AccordionContent>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <PlayCircle className="size-4" />
-                        {section.subSections?.length
-                          ? `${section.subSections.length} lessons`
-                          : 'Lessons coming soon'}
-                      </div>
+                      <LessonList sectionId={section._id} />
                     </AccordionContent>
                   </AccordionItem>
                 ))}

@@ -12,6 +12,24 @@ const sectionRepository = {
   deleteByCourse: async function (courseId) {
     const response = await Section.deleteMany({ course: courseId });
     return response;
+  },
+
+  addSubSection: async function (sectionId, subSectionId) {
+    const response = await Section.findByIdAndUpdate(
+      sectionId,
+      { $push: { subSections: subSectionId } },
+      { new: true }
+    );
+    return response;
+  },
+
+  removeSubSection: async function (sectionId, subSectionId) {
+    const response = await Section.findByIdAndUpdate(
+      sectionId,
+      { $pull: { subSections: subSectionId } },
+      { new: true }
+    );
+    return response;
   }
 };
 

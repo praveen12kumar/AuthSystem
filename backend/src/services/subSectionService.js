@@ -1,0 +1,98 @@
+import { StatusCodes } from 'http-status-codes';
+
+import sectionRepository from '../repository/sectionRepository.js';
+import subSectionRepository from '../repository/subSectionRepository.js';
+import { uploadVideoToCloudinary } from '../utils/common/videoUpload.js';
+import ClientError from '../utils/errors/clientError.js';
+import { ValidationError } from '../utils/errors/validationError.js';
+
+// Normalizes Mongoose validation/cast errors into the shared custom error types.
+const handleSubSectionError = (error) => {
+  if (error.name === 'ValidationError') {
+    throw new ValidationError({ error: error.errors }, error.message);
+  }
+
+  if (error.name === 'CastError') {
+    throw new ClientError({
+      message: 'Invalid id',
+      statusCode: StatusCodes.BAD_REQUEST,
+      explanation: ['Section or subsection id is not a valid identifier']
+    });
+  }
+
+  throw error;
+};
+
+export const createSubSectionService = async (data, videoFile) => {
+  try {
+    const section = await sectionRepository.getById(data.section);
+    if (!section) {
+      throw new ClientError({
+        message: 'Section not found',
+        statusCode: StatusCodes.NOT_FOUND,
+        explanation: ['No section exists with this id']
+      });
+    }
+
+    const uploadResult = await uploadVideoToCloudinary(
+      videoFile,
+      'lesson-videos'
+    );
+
+    const subSection = await subSectionRepository.create({
+      ...data,
+      videoUrl: uploadResult.secure_url,
+      videoPublicId: uploadResult.public_id,
+      duration: uploadResult.duration
+    });
+
+    await sectionRepository.addSubSection(data.section, subSection._id);
+
+    return subSection;
+  } catch (error) {
+    handleSubSectionError(error);
+  }
+};
+
+export const getSubSectionsBySectionService = async (sectionId) => {
+  try {
+    if (!sectionId) {
+      throw new ClientError({
+        message: 'section query parameter is required',
+        statusCode: StatusCodes.BAD_REQUEST,
+        explanation: ['Pass ?section=<sectionId> to list its lessons']
+      });
+    }
+
+    const section = await sectionRepository.getById(sectionId);
+    if (!section) {
+      throw new ClientError({
+        message: 'Section not found',
+        statusCode: StatusCodes.NOT_FOUND,
+        explanation: ['No section exists with this id']
+      });
+    }
+
+    const subSections = await subSectionRepository.getBySection(sectionId);
+    return subSections;
+  } catch (error) {
+    handleSubSectionError(error);
+  }
+};
+
+export const getSubSectionByIdService = async (id) => {
+  try {
+    const subSection = await subSectionRepository.getById(id);
+    if (!subSection) {
+      throw new ClientError({
+        message: 'Lesson not found',
+        statusCode: StatusCodes.NOT_FOUND,
+        explanation: ['No lesson exists with this id']
+      });
+    }
+
+    return subSection;
+  } catch (error) {
+    handleSubSectionError(error);
+  }
+};

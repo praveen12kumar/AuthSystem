@@ -1,7 +1,16 @@
 import { AnimatePresence, motion as Motion } from 'framer-motion';
-import { Check, GripVertical, Pencil, Plus, Trash2, X } from 'lucide-react';
+import {
+  Check,
+  ChevronDown,
+  GripVertical,
+  Pencil,
+  Plus,
+  Trash2,
+  X
+} from 'lucide-react';
 import { useState } from 'react';
 
+import LessonManager from '@/components/organisms/instructor/LessonManager';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,10 +30,12 @@ import { useCreateSection } from '@/hooks/apis/section/useCreateSection';
 import { useDeleteSection } from '@/hooks/apis/section/useDeleteSection';
 import { useSections } from '@/hooks/apis/section/useSections';
 import { useUpdateSection } from '@/hooks/apis/section/useUpdateSection';
+import { cn } from '@/lib/utils';
 
 const SectionRow = ({ section, courseId }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(section.title);
+  const [showLessons, setShowLessons] = useState(false);
   const { updateSection, isPending: isUpdating } = useUpdateSection();
   const { deleteSection, isPending: isDeleting } = useDeleteSection();
 
@@ -86,6 +97,20 @@ const SectionRow = ({ section, courseId }) => {
               {section.title}
             </span>
             <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setShowLessons((prev) => !prev)}
+              className="text-muted-foreground"
+            >
+              Lessons
+              <ChevronDown
+                className={cn(
+                  'size-4 transition-transform',
+                  showLessons && 'rotate-180'
+                )}
+              />
+            </Button>
+            <Button
               size="icon-sm"
               variant="ghost"
               onClick={() => setIsEditing(true)}
@@ -127,6 +152,11 @@ const SectionRow = ({ section, courseId }) => {
           </>
         )}
       </div>
+      {showLessons && (
+        <div className="mt-2 pl-7">
+          <LessonManager sectionId={section._id} />
+        </div>
+      )}
     </Motion.div>
   );
 };

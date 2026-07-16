@@ -148,6 +148,51 @@ export const isCourseOwnerOrAdmin = async (req, res, next) => {
   }
 };
 
+// Must run after isAuthenticated (+ validate(), since it reads req.body.section).
+// Resolves ownership by walking SubSection-create's only available id
+// (req.body.section) up to its Section, then that Section's Course. ADMIN
+// bypasses the ownership check.
+export const isSubSectionOwnerOrAdmin = async (req, res, next) => {
+  try {
+    const section = await sectionRepository.getById(req.body?.section);
+    if (!section) {
+      return res.status(StatusCodes.NOT_FOUND).json(
+        customErrorResponse({
+          explanation: 'No section exists with this id',
+          message: 'Section not found'
+        })
+      );
+    }
+
+    const course = await courseRepository.getById(section.course);
+    const isOwner = course && String(course.instructor) === req.user.id;
+    const isAdmin = req.user.role === 'ADMIN';
+    if (!isOwner && !isAdmin) {
+      return res.status(StatusCodes.FORBIDDEN).json(
+        customErrorResponse({
+          explanation:
+            "Only this section's course instructor or an admin can perform this action",
+          message: 'You do not have permission to perform this action'
+        })
+      );
+    }
+
+    return next();
+  } catch (error) {
+    if (error.name === 'CastError') {
+      return res.status(StatusCodes.BAD_REQUEST).json(
+        customErrorResponse({
+          explanation: 'Section id is not a valid identifier',
+          message: 'Invalid section id'
+        })
+      );
+    }
+    return res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json(internalErrorResponse(error));
+  }
+};
+
 // Must run after isAuthenticated - resolves ownership via the section's own
 // course, since update/delete only have the section id (req.params.id), not a
 // course id in the body. ADMIN bypasses the ownership check.
