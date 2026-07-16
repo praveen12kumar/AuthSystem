@@ -55,9 +55,11 @@ Client (React) --axios--> /api/v1/* (Express) --> service layer --> repository l
   `x-access-token` for compatibility — but the frontend currently only sends
   `x-access-token`, which is a known deviation from the standard (tracked in
   `progress-tracker.md`, not yet fixed).
-- Token creation: `createJWT({ id, email })`, signed with `JWT_SECRET`, expiry from
+- Token creation: `createJWT({ id, email, role })`, signed with `JWT_SECRET`, expiry from
   `JWT_EXPIRES_IN` env var. Password/hash is never included in the payload or returned
-  to the client.
+  to the client. `signInService`'s response body also includes `id`/`role` alongside the
+  token (not just inside the JWT) — the frontend never decodes the JWT client-side, so
+  anything the UI needs (role-gating, ownership checks) must be in the plain response.
 - Token verification re-fetches the user from the DB on every authenticated request
   (`userRepository.getById(decoded.id)`) to confirm the account still exists — auth
   doesn't trust the JWT payload alone for anything beyond `id`/`email`.

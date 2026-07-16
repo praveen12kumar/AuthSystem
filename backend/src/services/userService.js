@@ -125,10 +125,12 @@ export const signInService = async (data) => {
     }
 
     return {
+      id: user.id,
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
       avatar: user.avatar,
+      role: user.role,
       token: createJWT({ id: user._id, email: user.email, role: user.role })
     };
   } catch (error) {

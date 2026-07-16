@@ -62,6 +62,15 @@ course detail page, not a real flow — Payment isn't wired up.
   Live-verified end-to-end against the real backend/Cloudinary (mint-JWT + temporary
   role elevation on a real account, reverted after; all test data cleaned up and cascade
   delete re-confirmed).
+- **Fixed a real bug found via Playwright verification**: `signInService`
+  (`backend/src/services/userService.js`) returned `{firstName, lastName, email, avatar,
+  token}` — no `id` or `role` — even though the JWT itself already encoded both. This
+  silently broke every role-gated frontend feature for real signed-in users (Header's
+  Dashboard link, `ProtectedRoute`'s `roles` check, Instructor Dashboard's ownership
+  filter, Course Detail's "Manage this course" button all read `auth.user.id`/`.role`,
+  which were always `undefined`). Fixed by adding both fields to the returned object;
+  verified live against the real `/signin` endpoint with a throwaway test user (deleted
+  after).
 
 ## In Progress
 
