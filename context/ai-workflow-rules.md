@@ -46,11 +46,23 @@ Before reporting a unit as done, walk this checklist explicitly:
 
 ## Verification
 
-- Backend: no test suite exists yet — verification is manual (hit the endpoint, check
-  the DB state, check the response shape matches `responseObject.js` conventions).
-  If you add a test runner, document it here and in `package.json` scripts.
-- Frontend: no test suite exists yet either. For UI changes, run the dev server and
-  exercise the flow in a browser before calling it done.
+- **Backend**: Vitest + supertest + `mongodb-memory-server`, `npm test` (or `npm run
+  test:watch`) in `backend/`. Tests hit the real Express `app` (`src/app.js`, imported
+  directly — never `src/index.js`, which calls `connectDB()`/`app.listen()` as a side
+  effect of import and would connect to the real dev database) over HTTP via
+  `supertest`, against a real `mongod` binary running in memory (`tests/setup.js`) —
+  Mongoose validators/indexes behave exactly like production, nothing ever touches the
+  real dev/prod database. External services (Redis via `@upstash/redis`'s REST client)
+  are used for real when cheap and safe to (see `tests/auth/signup.test.js`, which
+  exercises real OTP rate-limiting state and cleans its own Redis keys up in
+  `afterEach`) — only genuinely costly/noisy externals (actually sending an email via
+  nodemailer) get mocked, and only the transport call itself, not the surrounding
+  business logic. New domains should extend this pattern (one test file per route
+  group under `tests/<domain>/`) rather than introducing a different one. Currently
+  covers: Auth (signin, signup, email verification). Not yet covered: everything else
+  — see `progress-tracker.md` Next Up for what's next in line.
+- **Frontend**: still no automated test suite. For UI changes, run the dev server and
+  exercise the flow in a browser (Playwright, per Session Notes) before calling it done.
 
 ## Session Discipline
 

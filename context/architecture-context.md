@@ -16,6 +16,9 @@
   HMAC-SHA256 signature check. See Payment Model below.
 - **Planned, not yet wired up**: `swagger-autogen` (API docs) — installed but no code
   references it yet `[INFERRED: intent]`.
+- **Testing**: Vitest + supertest (backend only) against a real in-memory MongoDB
+  (`mongodb-memory-server`) — see Verification in `ai-workflow-rules.md` for the full
+  pattern and what's covered so far. No frontend test suite yet.
 
 ## System Boundaries
 
@@ -32,6 +35,13 @@ Client (React) --axios--> /api/v1/* (Express) --> service layer --> repository l
   → service → repository → Mongoose model`. Controllers never call Mongoose directly.
 - Course, Section, SubSection, Payment, CourseProgress, and Review all have full
   CRUD/flow layers now — every domain in the original data model is wired up end to end.
+- **`src/app.js` builds the Express app (middleware, routes) and exports it; `src/index.js`
+  imports that app and owns startup only** (`connectDB()`, Redis ping, `app.listen()`).
+  Split specifically so tests can `import app from 'src/app.js'` and drive it with
+  `supertest` without triggering a real database connection as a side effect of import
+  — importing `src/index.js` itself would immediately try to connect to the real
+  dev/prod MongoDB. Any new top-level middleware or route mount belongs in `app.js`,
+  not `index.js`.
 
 ## Storage Model
 
@@ -267,11 +277,12 @@ Client (React) --axios--> /api/v1/* (Express) --> service layer --> repository l
 - **Denormalized reviewer identity**: `reviewerName`/`reviewerAvatar` are snapshotted
   onto the `Review` document at creation time, not resolved via a join — this codebase
   never does Mongoose `.populate()`, and unlike Tag (small, fully public, listable via
-  `useTags`), `User` isn't a browsable domain and has no `GET /users` endpoint, so
-  there's no cheap way to resolve "who wrote this" client-side the way `CourseCard`
-  resolves tag names. The tradeoff: a reviewer's displayed name/avatar reflects what
-  they were at post time, not their current profile — accepted, matches how most
-  real-world review systems actually behave.
+  `useTags`), `User` isn't a browsable domain — the one `GET /users` endpoint that
+  exists (added later, for admin User Management) is `ADMIN`-only, so it's not something
+  a regular student's browser can call to resolve "who wrote this review" the way
+  `CourseCard` resolves tag names. The tradeoff: a reviewer's displayed name/avatar
+  reflects what they were at post time, not their current profile — accepted, matches
+  how most real-world review systems actually behave.
 - **`Course.averageRating`/`numberOfRatings` are recomputed after every
   create/update/delete**, not maintained incrementally — `recomputeCourseRatingStats`
   (`reviewService.js`) refetches all of a course's reviews and averages them in JS

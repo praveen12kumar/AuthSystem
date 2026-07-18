@@ -15,7 +15,9 @@ light/dark theme. Tags can now be created/edited/deleted from a real UI
 (`/instructor/tags`) instead of Postman, and an admin can view every user and change
 roles from `/admin/users` — the first genuinely `ADMIN`-only (not `INSTRUCTOR`-shared)
 page in the app. Nothing from the original scope is unbuilt anymore — remaining work is
-entirely refinement (see Next Up).
+entirely refinement (see Next Up). The backend also has its first automated tests now
+(Vitest + supertest + in-memory MongoDB, covering Auth) — see `ai-workflow-rules.md`
+Verification for the pattern; everything else is still manual-verification-only.
 
 ## Completed
 
@@ -209,6 +211,21 @@ entirely refinement (see Next Up).
   of an editable selector. Live-verified: promoted the real test student to
   `INSTRUCTOR` and back, and confirmed a `STUDENT` account is redirected away from the
   route entirely.
+- **Automated testing infrastructure** (backend) — the app had zero test coverage
+  anywhere until now. Chose Vitest (this project is ESM, `"type": "module"`, which Jest
+  still needs extra config for) + `supertest` + `mongodb-memory-server` (a real `mongod`
+  binary in memory — Mongoose validators/indexes/unique constraints behave exactly like
+  production, but nothing touches the real dev/prod DB and no network/local-infra is
+  needed). Required one small refactor first: `src/index.js` used to build the Express
+  app *and* call `connectDB()`/`app.listen()` all in one file with no way to import just
+  the app — split into `src/app.js` (builds and exports the app, no side effects) and
+  a now-tiny `src/index.js` (owns startup only). First slice covers Auth (signin;
+  signup + email verification, real Redis rate-limit state, only the nodemailer
+  transport call mocked to avoid sending real emails every run) — 8 tests, all passing,
+  `npm test` in `backend/`. See `ai-workflow-rules.md` Verification for the established
+  pattern to extend for other domains, and `architecture-context.md` Stack/System
+  Boundaries for the `app.js`/`index.js` split. Not yet covered: every other domain, and
+  the frontend has no test suite at all yet.
 
 ## In Progress
 
@@ -217,6 +234,9 @@ Nothing actively in progress.
 ## Next Up
 
 Pick one (per `ai-workflow-rules.md` scoping rule — one at a time):
+- Extend automated test coverage to another domain (Payment's signature verification
+  is the highest-value next target — real money, easy to get subtly wrong — followed by
+  Course/enrollment ownership checks).
 - Course search/filter is currently client-side only (catalog page filters an
   already-fetched full course list) — `GET /courses` has no server-side query params;
   revisit if the catalog needs to scale past fetch-everything
@@ -252,9 +272,11 @@ Pick one (per `ai-workflow-rules.md` scoping rule — one at a time):
   Reason: conventional JWT header; backend middleware already prefers it. Frontend still
   sends `x-access-token` — not yet migrated.
 - **Course FK fields are named `course`, not `courseID`.**
-  Reason: matches the majority of existing models (payment, review, section).
-  `courseProgressSchema.js` still uses `courseID` (and has a related index bug
-  referencing a non-existent `course` field) — not yet fixed.
+  Reason: matches all existing models now (payment, review, section, course progress).
+  `courseProgressSchema.js` used to be the one exception (`courseID`, plus a unique
+  index referencing a `course` field that didn't exist on the schema) — fixed when the
+  CourseProgress domain was built out; the collection was empty at the time, so no
+  migration was needed.
 - **`schema/` will become `models/`**, and `validators/userSchema.js` stays put.
   Reason: `schema/*.js` files are Mongoose models, not schemas in the Zod sense; the
   shared name with `validators/userSchema.js` (a Zod schema) is confusing. Rename not
