@@ -55,6 +55,21 @@ detail page, not a real flow — Payment isn't wired up.
   `<button aria-pressed>`. Added missing `aria-label`s to icon-only buttons throughout.
   Fixed the default `<title>frontend</title>`. Live-verified with Playwright. Deliberately
   left Auth pages and full 44px touch-target sizing untouched (see Open Questions).
+- **Fixed a real security bug the user found manually**: `GET /api/v1/subsections` and
+  `GET /api/v1/subsections/:id` had no `isAuthenticated` check — any anonymous visitor
+  (not even logged in) could fetch a lesson's real `videoUrl` and watch or download it,
+  discoverable via the native `<video controls>` element's "⋮" overflow menu (Chromium
+  adds a Download option there by default) or just by calling the API directly. Root
+  cause: SubSection reads copied the "reads are public" pattern from Tag/Course/Section
+  without accounting for the fact that a lesson's response carries actual paid content
+  (the video), not just browsable metadata. Fixed by requiring login on both routes; per
+  explicit product decision, this is an **interim** policy (any authenticated user can
+  watch, not just enrolled ones) since enrollment doesn't exist yet — see
+  `architecture-context.md` Invariants. Also added `controlsList="nodownload"` +
+  `onContextMenu` prevention on the `<video>` element as UI friction (not real
+  protection on its own). Live-verified: anonymous request now 401s, a logged-in
+  non-owner `STUDENT` still gets 200 (matches the agreed interim policy), frontend
+  degrades to the existing "no lessons" empty state when logged out rather than crashing.
 
 ## In Progress
 
@@ -70,13 +85,14 @@ Pick one (per `ai-workflow-rules.md` scoping rule — one at a time):
   already-fetched full course list) — `GET /courses` has no server-side query params;
   revisit if the catalog needs to scale past fetch-everything
 - Payments & checkout (wire up the `Payment` model into a real purchase flow) — the
-  course detail page's "Enroll" button is a placeholder toast today
+  course detail page's "Enroll" button is a placeholder toast today. When this lands,
+  also tighten SubSection reads from "any logged-in user" to a real enrollment check
+  (see `architecture-context.md` Invariants) — that interim gate was only ever meant to
+  hold until this existed.
 - Student enrollment action
 
 ## Open Questions
 
-- Should `.claude/skills/ui-ux-pro-max` be committed to the repo (shared with anyone who
-  clones it) or left as a local, uncommitted tool? Not yet decided either way.
 - The accessibility audit found most interactive elements are 32-36px (shadcn's default
   `sm`/`icon-sm` button sizes), below the 44×44px touch-target guideline. Left as-is
   since fixing it site-wide would be a real visual-density change, not a quick polish —

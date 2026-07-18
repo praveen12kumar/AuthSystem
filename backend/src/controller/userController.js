@@ -19,11 +19,11 @@ import {
 export const signup = async (req, res) => {
   try {
     await signUpService(req.body);
-    return res.status(StatusCodes.OK).json(
-      successResponse(
-        {},'Please check your email to verify your account'
-      )
-    );
+    return res
+      .status(StatusCodes.OK)
+      .json(
+        successResponse({}, 'Please check your email to verify your account')
+      );
   } catch (error) {
     //console.log("user Controller error", error);
     if (error.statusCode) {

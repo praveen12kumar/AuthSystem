@@ -134,6 +134,16 @@ Only things whose violation is a bug — not preferences:
   write route); reads are public for all three. Course/Section writes additionally
   require course ownership (see Auth Model above) — `ADMIN` bypasses ownership too.
   `course.instructor` is always set server-side from `req.user.id`, never from the body.
+- **SubSection reads require `isAuthenticated` — they are the one exception to "reads are
+  public."** A lesson's response carries the real, playable `videoUrl` (the paid content
+  itself), not just browsable metadata, so it can't follow the same public-read pattern
+  as Tag/Course/Section titles. Originally shipped as a fully public route by copying
+  that pattern without carving out the exception — found live (any logged-out visitor
+  could fetch and download lesson videos) and fixed by requiring login. This is
+  deliberately an **interim** gate, not the final one: any authenticated user can watch
+  any lesson today, regardless of enrollment, because enrollment doesn't exist yet (see
+  `progress-tracker.md` Next Up). Tighten to a real ownership/enrollment check once
+  Payment/Enrollment ships — don't mistake "requires login" for "requires having paid."
 - A Course must have a `thumbnail` (Mongoose `required` + route-level `requireFile` on
   create) and at least one existing Tag id (Zod shape-check + a service-layer existence
   check via `tagRepository.findByIds` — a well-formed but nonexistent tag id is rejected).

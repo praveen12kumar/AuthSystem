@@ -62,6 +62,8 @@ const LessonList = ({ sectionId }) => {
                   <video
                     src={lesson.videoUrl}
                     controls
+                    controlsList="nodownload"
+                    onContextMenu={(e) => e.preventDefault()}
                     autoPlay
                     className="aspect-video w-full bg-black"
                   />

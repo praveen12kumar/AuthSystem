@@ -24,9 +24,13 @@ import { validate } from '../../validators/zodValidators.js';
 
 const router = express.Router();
 
-router.get('/', getSubSectionsBySection);
+// Unlike Tag/Course/Section, SubSection reads are NOT public - the response
+// carries the real, playable videoUrl (the paid content itself), not just
+// browsable metadata. Until real enrollment exists, "logged in" is the
+// interim gate; tighten to an ownership/enrollment check once that's built.
+router.get('/', isAuthenticated, getSubSectionsBySection);
 
-router.get('/:id', getSubSectionById);
+router.get('/:id', isAuthenticated, getSubSectionById);
 
 router.post(
   '/',
