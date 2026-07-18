@@ -23,6 +23,16 @@ export const getMyPaymentsRequest = async () => {
     }
 };
 
+export const getEarningsSummaryRequest = async () => {
+    try {
+        const response = await axios.get('/api/v1/payments/earnings');
+        return response.data;
+    } catch (error) {
+        console.log('error fetching earnings', error);
+        throw getErrorMessage(error);
+    }
+};
+
 export const verifyPaymentRequest = async ({
     razorpay_order_id,
     razorpay_payment_id,

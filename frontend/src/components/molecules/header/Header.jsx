@@ -7,7 +7,8 @@ import {
   Moon,
   ShoppingBag,
   Sun,
-  User
+  User,
+  Wallet
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -128,6 +129,13 @@ const Header = () => {
                   <DropdownMenuItem asChild>
                     <Link to="/instructor/courses">
                       <LayoutDashboard /> Instructor Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                {canTeach && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/instructor/earnings">
+                      <Wallet /> Earnings
                     </Link>
                   </DropdownMenuItem>
                 )}

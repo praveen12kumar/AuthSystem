@@ -4,6 +4,11 @@ import crudRepository from './crudRepository.js';
 const courseRepository = {
   ...crudRepository(Course),
 
+  getByInstructor: async function (instructorId) {
+    const response = await Course.find({ instructor: instructorId });
+    return response;
+  },
+
   addSection: async function (courseId, sectionId) {
     const response = await Course.findByIdAndUpdate(
       courseId,

@@ -25,3 +25,10 @@ export const CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET;
 
 export const RAZORPAY_API_KEY = process.env.RAZORPAY_API_KEY;
 export const RAZORPAY_API_SECRET = process.env.RAZORPAY_API_SECRET;
+
+// Percentage of each sale the platform keeps; the rest is the instructor's
+// earning. Snapshotted onto each Payment at verification time (see
+// paymentService.js) so a later change here never rewrites past earnings.
+export const PLATFORM_COMMISSION_PERCENT = Number(
+  process.env.PLATFORM_COMMISSION_PERCENT || 20
+);

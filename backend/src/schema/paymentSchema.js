@@ -41,6 +41,21 @@ const paymentSchema = new mongoose.Schema({
     type: String,
     trim: true,
   },
+  // Snapshotted at verification time from PLATFORM_COMMISSION_PERCENT, so a
+  // later change to the commission rate never rewrites past earnings.
+  platformFeePercent: {
+    type: Number,
+    min: 0,
+    max: 100,
+  },
+  platformFee: {
+    type: Number,
+    min: 0,
+  },
+  instructorEarning: {
+    type: Number,
+    min: 0,
+  },
 }, {
   timestamps: true,
 });

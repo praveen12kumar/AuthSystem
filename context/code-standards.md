@@ -121,6 +121,12 @@
   (`/courses/:id/sections`) — keeps every domain's router flat and consistent with
   Tag/Course, rather than mixing two routing styles. The query param name matches the
   FK field name (`course`, not `courseId`).
+- **Financial figures derived from a configurable rate (commission, tax, fees) are
+  snapshotted onto the transaction record itself at the moment it completes**, never
+  recomputed later from the current rate — `verifyPaymentService` writes
+  `platformFeePercent`/`platformFee`/`instructorEarning` onto the `Payment` the instant
+  it becomes `SUCCESS`. A later change to `PLATFORM_COMMISSION_PERCENT` must never alter
+  what a past sale is reported as having earned.
 - **Partial updates to a nested sub-document**: build a sparse `$set` object using
   dot-path keys (`'profile.about'`, `'profile.gender'`) containing only the fields the
   caller actually sent, rather than replacing the whole sub-document

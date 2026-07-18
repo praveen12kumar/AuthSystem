@@ -188,6 +188,22 @@ Client (React) --axios--> /api/v1/* (Express) --> service layer --> repository l
   (`MyPurchasesContainer`) resolves each payment's `course` id against the full course
   list (`useCourses`), the same id→map pattern used for tag names elsewhere — there is
   still no backend `.populate()`.
+- **Instructor earnings**: the platform takes a commission (`PLATFORM_COMMISSION_PERCENT`
+  in `serverConfig.js`, env-configurable, default 20) on every sale. `verifyPaymentService`
+  snapshots `platformFeePercent`/`platformFee`/`instructorEarning` onto the `Payment`
+  document **at the moment it flips to `SUCCESS`** — a later change to the commission env
+  var never rewrites past earnings, since each payment carries its own rate. `GET
+  /payments/earnings` (`isAuthenticated`, `authorize('INSTRUCTOR', 'ADMIN')`) sums
+  `instructorEarning` across the caller's own courses' `SUCCESS` payments
+  (`courseRepository.getByInstructor` → `paymentRepository.getByCourses`), returning a
+  total plus a per-course breakdown. Payments recorded before this feature existed have
+  no `instructorEarning` snapshot and are treated as `0` in the sum, not guessed —
+  there's no way to know what commission rate would have applied retroactively.
+- Earnings are displayed in real ₹ (`IndianRupee`/`formatINR` in `EarningsSummary.jsx`),
+  not the `$` used for course-price display elsewhere — this is deliberate, not
+  inconsistency-by-accident: course prices are a known cosmetic `$`/`₹` mismatch (see
+  `code-standards.md`), but real revenue numbers shown to an instructor need to be
+  actually correct, not follow the cosmetic convention.
 
 ## Progress Model
 

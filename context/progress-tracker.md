@@ -8,8 +8,9 @@ a real lesson video per section; students buy a course via Razorpay Checkout, th
 watch its lessons in a dedicated Course Player page (progress tracked per-lesson, not
 just "logged in and enrolled"). A "My Purchases" page lists what a student has bought,
 users can view/edit their own profile (name, avatar, about, phone, gender, DOB) and
-change their password from one consolidated page, and the whole app now has a real,
-user-toggleable light/dark theme. Review is still open (see Next Up).
+change their password from one consolidated page, instructors can see what they've
+earned (after a platform commission) per course and overall, and the whole app now has
+a real, user-toggleable light/dark theme. Review is still open (see Next Up).
 
 ## Completed
 
@@ -148,6 +149,21 @@ user-toggleable light/dark theme. Review is still open (see Next Up).
   upload, gender/DOB save, and password change were all live-verified against the real
   dev DB and account, with test avatars cleaned up from both MongoDB and Cloudinary
   afterward.
+- **Instructor earnings** — `PLATFORM_COMMISSION_PERCENT` (env-configurable, default
+  20%) is snapshotted onto each `Payment` at verification time
+  (`platformFeePercent`/`platformFee`/`instructorEarning`), so a later commission change
+  never rewrites historical earnings. `GET /payments/earnings` sums an instructor's own
+  courses' successful sales into a total plus a per-course breakdown; a new `/instructor
+  /earnings` page (linked from the header dropdown) displays it in real ₹, deliberately
+  not the cosmetic `$` used for course prices. Scoped deliberately narrow per explicit
+  user decision: **no payout request/admin-approval flow** and **no real bank transfer**
+  — actual money movement would need Razorpay's separate Payouts/RazorpayX product
+  (business KYC), which isn't available on the current test-mode account; this is an
+  earnings *dashboard* only. Live-verified: the commission math (20% platform / 80%
+  instructor on a ₹3000 sale → ₹600/₹2400), the aggregation across multiple payments for
+  the same course, the `INSTRUCTOR`/`ADMIN`-only role gate (a `STUDENT` gets 403), and
+  that a payment predating this feature correctly counts as `0` earnings rather than a
+  guess — all against the real dev DB, with every test payment cleaned up afterward.
 
 ## In Progress
 

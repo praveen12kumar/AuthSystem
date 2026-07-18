@@ -14,6 +14,14 @@ const paymentRepository = {
       createdAt: -1
     });
     return response;
+  },
+
+  getByCourses: async function (courseIds) {
+    const response = await Payment.find({
+      course: { $in: courseIds },
+      status: 'SUCCESS'
+    });
+    return response;
   }
 };
 

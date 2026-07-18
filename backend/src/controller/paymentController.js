@@ -2,6 +2,7 @@ import { StatusCodes } from 'http-status-codes';
 
 import {
   createOrderService,
+  getInstructorEarningsService,
   getMyPaymentsService,
   verifyPaymentService
 } from '../services/paymentService.js';
@@ -35,6 +36,23 @@ export const getMyPayments = async (req, res) => {
     return res
       .status(StatusCodes.OK)
       .json(successResponse(response, 'Purchases fetched successfully'));
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json(customErrorResponse(error));
+    }
+    return res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json(internalErrorResponse(error));
+  }
+};
+
+// summarize the current instructor's earnings across their own courses
+export const getEarnings = async (req, res) => {
+  try {
+    const response = await getInstructorEarningsService(req.user.id);
+    return res
+      .status(StatusCodes.OK)
+      .json(successResponse(response, 'Earnings fetched successfully'));
   } catch (error) {
     if (error.statusCode) {
       return res.status(error.statusCode).json(customErrorResponse(error));
