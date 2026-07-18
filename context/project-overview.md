@@ -15,39 +15,42 @@ right rather than patch around it.
 ## For Whom
 
 - **Students** — browse/search courses, enroll, pay, track progress, leave reviews.
-- **Instructors** — author courses (sections, subsections/lessons), publish, get paid.
-- **Admins** — implied by the `role` enum (`ADMIN`/`INSTRUCTOR`/`STUDENT`) on the User
-  model, though no admin-specific features exist yet.
+- **Instructors** — author courses (sections, subsections/lessons), publish, get paid
+  (an earnings dashboard exists; see Current State — no real bank payout yet).
+- **Admins** — full CRUD on Tags, and can list every user and change roles. Course
+  moderation (acting on courses you don't own) and platform-wide analytics do not exist
+  yet — see Not Yet Decided below.
 
-## Current State (as of 2026-07-15)
+## Current State (as of 2026-07-18)
 
-Auth is functionally complete end-to-end (signup, email verification via OTP, signin,
-forgot/reset/change password) for both backend and frontend. Mongoose models exist for
-Course, Section, SubSection, Tag, Review, Payment, and CourseProgress, but none of them
-have repositories, services, controllers, or routes wired up yet — User is the only domain
-with the full stack built.
+Every domain in the original data model — Auth, Tag, Course, Section, SubSection,
+Payment/Enrollment, CourseProgress, Profile, and Review — is functionally complete
+end-to-end, backend **and** frontend. This is well past the original three-item scope
+below; see `progress-tracker.md`'s Current Phase and Completed sections for the full,
+up-to-date list — don't treat this file's snapshot as more current than that one when
+they'd ever disagree.
 
 ## Scope Boundaries — What's Next
 
-In scope for the current build-out (in no particular priority order — not yet sequenced):
-
-- **Course browsing & enrollment** — students can search/filter courses, view details,
-  enroll.
-- **Course creation** — instructors can author courses with sections and subsections,
-  publish them.
-- **Payments & checkout** — wire up the existing `Payment` model into an actual purchase
-  flow.
+The original three-item build-out (course browsing/enrollment, course creation,
+payments & checkout) is done. Remaining and possible-future work lives in
+`progress-tracker.md`'s Next Up section, not duplicated here, to avoid this file
+drifting out of sync the way it previously did.
 
 Not yet decided / not addressed by any model or discussion:
 
-- Admin-specific features (moderation, analytics, user management).
-- Course content delivery format (video hosting? `cloudinary`/`multer` are installed but
-  unused — likely for this, unconfirmed).
-- Notifications beyond transactional email (OTP, password reset).
+- Course moderation (an admin acting on a course they don't own — unpublish, delete) and
+  platform-wide analytics (revenue, signups, usage). User management (list users, change
+  roles) exists; the rest of "admin-specific features" doesn't yet.
+- Notifications beyond transactional email (OTP, password reset) — e.g. "you're
+  enrolled," "new lesson added."
+- Real payouts to instructors (current earnings feature is a dashboard only — see
+  `architecture-context.md` Payment Model for why real bank transfer is out of reach
+  right now).
 
-If a request falls outside the three areas above and isn't listed here, treat it as
-out of scope until confirmed — add it to Open Questions in `progress-tracker.md` rather
-than assuming.
+If a request falls outside what's described as done above and isn't listed here, treat
+it as out of scope until confirmed — add it to Open Questions in `progress-tracker.md`
+rather than assuming.
 
 ## Success Criteria
 

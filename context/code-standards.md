@@ -56,8 +56,9 @@
   `'SUCCESS'`) except nested sub-document enums like `profile.gender`, which are
   lowercase — follow whichever convention the field you're extending already uses.
 - FK fields referencing another model are named after the singular lowercase model name
-  (`course`, `user`) — not `<name>ID`. See Architecture Decisions for the one known
-  exception being fixed (`courseProgressSchema`'s `courseID`).
+  (`course`, `user`) — not `<name>ID`. Every model follows this now; `courseProgressSchema`
+  used to be the one exception and was fixed when the CourseProgress domain was built out
+  (see Architecture Decisions in `architecture-context.md`).
 - **Authorization beyond "logged in"**: use `authorize(...allowedRoles)` from
   `authMiddleware.js` on the route, chained after `isAuthenticated`
   (`isAuthenticated, authorize('ADMIN', 'INSTRUCTOR'), validate(schema), controllerFn`).

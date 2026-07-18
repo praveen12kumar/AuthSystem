@@ -105,9 +105,11 @@ handling; it's already covered globally.
 - `Header` (`components/molecules/header/Header.jsx`) is `sticky top-0`, not absolutely
   positioned — every page renders it inline as a normal flex child, including
   `pages/auth/Auth.jsx`'s shared shell (`<Header/>` then centered `children` below it).
-  It's auth-aware: shows Sign In/Get Started when logged out, an avatar dropdown (Sign
-  Out, Change Password, and — only for `INSTRUCTOR`/`ADMIN` — a Dashboard link) when
-  logged in.
+  It's auth-aware: shows Sign In/Get Started when logged out; an avatar dropdown when
+  logged in with Explore Courses, My Purchases, and Profile for everyone, plus
+  Instructor Dashboard/Earnings/Manage Tags for `INSTRUCTOR`/`ADMIN` (`canTeach`) and
+  Manage Users for `ADMIN` only (`isAdmin`) — two separate boolean checks, not one role
+  list, since the two role groups gate different item sets.
 - Route-level role gating: `ProtectedRoute` (`components/molecules/protectRoute/`)
   accepts an optional `roles` array prop; if the logged-in user's role isn't in it,
   redirect to `/` instead of rendering. Use this for any route beyond "must be logged
