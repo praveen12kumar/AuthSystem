@@ -1,19 +1,167 @@
 import { AnimatePresence, motion as Motion } from 'framer-motion';
-import { Film, Plus, Upload } from 'lucide-react';
+import { Check, Film, Pencil, Plus, Trash2, Upload, X } from 'lucide-react';
 import { useState } from 'react';
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCreateSubSection } from '@/hooks/apis/subsection/useCreateSubSection';
+import { useDeleteSubSection } from '@/hooks/apis/subsection/useDeleteSubSection';
 import { useSubSections } from '@/hooks/apis/subsection/useSubSections';
+import { useUpdateSubSection } from '@/hooks/apis/subsection/useUpdateSubSection';
 
 const formatDuration = (seconds) => {
   if (!seconds && seconds !== 0) return '';
   const mins = Math.floor(seconds / 60);
   const secs = Math.round(seconds % 60);
   return `${mins}:${String(secs).padStart(2, '0')}`;
+};
+
+const LessonRow = ({ lesson, sectionId }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [title, setTitle] = useState(lesson.title);
+  const { updateSubSection, isPending: isUpdating } = useUpdateSubSection();
+  const { deleteSubSection, isPending: isDeleting } = useDeleteSubSection();
+
+  const handleSave = async () => {
+    if (!title.trim() || title === lesson.title) {
+      setIsEditing(false);
+      setTitle(lesson.title);
+      return;
+    }
+    try {
+      await updateSubSection({ id: lesson._id, title, section: sectionId });
+      setIsEditing(false);
+    } catch {
+      // toast already handled
+    }
+  };
+
+  const handleReplaceVideo = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      await updateSubSection({ id: lesson._id, video: file, section: sectionId });
+    } catch {
+      // toast already handled
+    }
+  };
+
+  const isPending = isUpdating || isDeleting;
+
+  return (
+    <Motion.div
+      layout
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      className="flex items-center gap-2 rounded-md bg-background px-3 py-2 text-sm"
+    >
+      <Film className="size-4 shrink-0 text-primary" />
+      {isEditing ? (
+        <>
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            disabled={isUpdating}
+            autoFocus
+            className="h-7 flex-1"
+          />
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            onClick={handleSave}
+            disabled={isUpdating}
+          >
+            <Check className="size-4" />
+          </Button>
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            onClick={() => {
+              setIsEditing(false);
+              setTitle(lesson.title);
+            }}
+          >
+            <X className="size-4" />
+          </Button>
+        </>
+      ) : (
+        <>
+          <span className="flex-1 truncate">{lesson.title}</span>
+          <span className="text-xs text-muted-foreground">
+            {formatDuration(lesson.duration)}
+          </span>
+          <Label
+            className="flex size-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
+            title="Replace video"
+          >
+            <Upload className="size-4" />
+            <input
+              type="file"
+              accept="video/*"
+              className="hidden"
+              onChange={handleReplaceVideo}
+              disabled={isPending}
+            />
+          </Label>
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            onClick={() => setIsEditing(true)}
+            disabled={isPending}
+          >
+            <Pencil className="size-4" />
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                className="text-destructive hover:text-destructive"
+                disabled={isPending}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete lesson?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  "{lesson.title}" and its video will be permanently removed.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={isDeleting}
+                  onClick={() =>
+                    deleteSubSection({ id: lesson._id, section: sectionId })
+                  }
+                  className="bg-destructive text-white hover:bg-destructive/90"
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
+      )}
+    </Motion.div>
+  );
 };
 
 const LessonManager = ({ sectionId }) => {
@@ -54,19 +202,7 @@ const LessonManager = ({ sectionId }) => {
       ) : (
         <AnimatePresence initial={false}>
           {subSections.map((lesson) => (
-            <Motion.div
-              key={lesson._id}
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="flex items-center gap-2 rounded-md bg-background px-3 py-2 text-sm"
-            >
-              <Film className="size-4 shrink-0 text-primary" />
-              <span className="flex-1 truncate">{lesson.title}</span>
-              <span className="text-xs text-muted-foreground">
-                {formatDuration(lesson.duration)}
-              </span>
-            </Motion.div>
+            <LessonRow key={lesson._id} lesson={lesson} sectionId={sectionId} />
           ))}
         </AnimatePresence>
       )}

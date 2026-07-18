@@ -2,8 +2,10 @@ import express from 'express';
 
 import {
   createSubSection,
+  deleteSubSection,
   getSubSectionById,
-  getSubSectionsBySection
+  getSubSectionsBySection,
+  updateSubSection
 } from '../../controller/subSectionController.js';
 import {
   authorize,
@@ -14,7 +16,10 @@ import {
   requireFile,
   uploadVideoSingle
 } from '../../middlewares/uploadMiddleware.js';
-import { createSubSectionSchema } from '../../validators/subSectionSchema.js';
+import {
+  createSubSectionSchema,
+  updateSubSectionSchema
+} from '../../validators/subSectionSchema.js';
 import { validate } from '../../validators/zodValidators.js';
 
 const router = express.Router();
@@ -32,6 +37,24 @@ router.post(
   validate(createSubSectionSchema),
   isSubSectionOwnerOrAdmin,
   createSubSection
+);
+
+router.put(
+  '/:id',
+  isAuthenticated,
+  authorize('ADMIN', 'INSTRUCTOR'),
+  uploadVideoSingle('video'),
+  validate(updateSubSectionSchema),
+  isSubSectionOwnerOrAdmin,
+  updateSubSection
+);
+
+router.delete(
+  '/:id',
+  isAuthenticated,
+  authorize('ADMIN', 'INSTRUCTOR'),
+  isSubSectionOwnerOrAdmin,
+  deleteSubSection
 );
 
 export default router;

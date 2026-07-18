@@ -92,19 +92,22 @@
   (`sectionRepository.deleteByCourse`), not a per-child loop — and do it before deleting
   the parent itself.
 - **Best-effort external cleanup**: an operation on an external service (deleting an old
-  Cloudinary image after a successful replace/delete) must never fail the primary
+  Cloudinary image/video after a successful replace/delete) must never fail the primary
   operation that already succeeded in the DB. Wrap it in a helper that catches and logs
-  its own errors (`safeDeleteCloudinaryImage` in `courseService.js`) rather than letting
-  it propagate through the normal error-handling path.
+  its own errors (`safeDeleteCloudinaryImage` in `courseService.js`,
+  `safeDeleteCloudinaryVideo` in `subSectionService.js` — same shape, not shared since
+  they call different Cloudinary util functions) rather than letting it propagate
+  through the normal error-handling path.
 - **Ownership checks** (a resource belongs to a specific user, not just "some role"):
   write a concrete middleware per way the owning resource is resolved, chained after
   `isAuthenticated` (+ `validate()` only if it needs `req.body` shape-confirmed first).
   `isCourseOwnerOrAdmin` resolves via `req.body.course || req.params.id` (Section create
   vs. Course update/delete — one function, since both cases are "does req.user own
-  *this* course," just sourced from two request locations). `isSectionOwnerOrAdmin`
-  (Section update/delete) and `isSubSectionOwnerOrAdmin` (SubSection create, via
-  `req.body.section`) are each a genuinely different resolution path (one more hop up
-  the Section→Course chain) and stay separate — don't force every ownership case into
+  *this* course," just sourced from two request locations). `isSubSectionOwnerOrAdmin`
+  does the same dual-resolution trick one hop deeper (`req.body.section` for create, or
+  look up the SubSection via `req.params.id` for update/delete, then walk up to its
+  Section's course). `isSectionOwnerOrAdmin` (Section update/delete only) is a genuinely
+  different resolution path and stays separate — don't force every ownership case into
   one parameterized factory, but do reuse one function across call sites checking the
   exact same thing from a different request field.
 - **Listing a sub-resource by its parent** (e.g. Sections of a Course): use a query

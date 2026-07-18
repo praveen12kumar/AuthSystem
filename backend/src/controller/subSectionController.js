@@ -2,8 +2,10 @@ import { StatusCodes } from 'http-status-codes';
 
 import {
   createSubSectionService,
+  deleteSubSectionService,
   getSubSectionByIdService,
-  getSubSectionsBySectionService
+  getSubSectionsBySectionService,
+  updateSubSectionService
 } from '../services/subSectionService.js';
 import {
   customErrorResponse,
@@ -52,6 +54,44 @@ export const getSubSectionById = async (req, res) => {
     return res
       .status(StatusCodes.OK)
       .json(successResponse(response, 'Lesson fetched successfully'));
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json(customErrorResponse(error));
+    }
+    return res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json(internalErrorResponse(error));
+  }
+};
+
+// update lesson
+export const updateSubSection = async (req, res) => {
+  try {
+    const response = await updateSubSectionService(
+      req.params.id,
+      req.body,
+      req.file
+    );
+    return res
+      .status(StatusCodes.OK)
+      .json(successResponse(response, 'Lesson updated successfully'));
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json(customErrorResponse(error));
+    }
+    return res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json(internalErrorResponse(error));
+  }
+};
+
+// delete lesson
+export const deleteSubSection = async (req, res) => {
+  try {
+    await deleteSubSectionService(req.params.id);
+    return res
+      .status(StatusCodes.OK)
+      .json(successResponse({}, 'Lesson deleted successfully'));
   } catch (error) {
     if (error.statusCode) {
       return res.status(error.statusCode).json(customErrorResponse(error));

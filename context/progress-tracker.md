@@ -2,12 +2,12 @@
 
 ## Current Phase
 
-Auth, Tag, Course, and Section are functionally complete end-to-end, backend **and**
-frontend. SubSection now has create + read (backend and frontend both): instructors
-upload a real lesson video per section, students watch it inline on the course detail
-page. SubSection update/delete, plus Payment/Review/CourseProgress, are still open (see
-Next Up). Enrollment/checkout is intentionally a disabled "coming soon" affordance on the
-course detail page, not a real flow — Payment isn't wired up.
+Auth, Tag, Course, Section, and SubSection are all functionally complete end-to-end,
+backend **and** frontend, full CRUD on every one. Instructors upload a real lesson video
+per section and can rename/replace-video/delete it; students watch it inline on the
+course detail page. Payment/Review/CourseProgress are still open (see Next Up).
+Enrollment/checkout is intentionally a disabled "coming soon" affordance on the course
+detail page, not a real flow — Payment isn't wired up.
 
 ## Completed
 
@@ -69,7 +69,7 @@ course detail page, not a real flow — Payment isn't wired up.
   which were always `undefined`). Fixed by adding both fields to the returned object;
   verified live against the real `/signin` endpoint with a throwaway test user (deleted
   after).
-- SubSection (lesson) create + read, backend and frontend: `repository/
+- SubSection (lesson), full CRUD, backend and frontend: `repository/
   subSectionRepository.js`, `services/subSectionService.js`, `validators/
   subSectionSchema.js`, `controller/subSectionController.js`, `routes/v1/subsections.js`,
   mounted at `/api/v1/subsections`. Video uploads via a dedicated `uploadVideoSingle`
@@ -90,6 +90,22 @@ course detail page, not a real flow — Payment isn't wired up.
   through the real UI, correct auto-derived duration, playback confirmed in a headless
   browser (`readyState: 4`), plus a regression check that image thumbnail upload still
   works. All test data cleaned up (Cloudinary assets, DB records, temporary role grant).
+- SubSection update/delete: rename-only updates leave the video untouched; sending a new
+  `video` file replaces it and best-effort-cleans up the old Cloudinary asset
+  (`safeDeleteCloudinaryVideo`), same pattern as Course's thumbnail. Delete removes the
+  lesson, `$pull`s it from `Section.subSections`, and cleans up its video. Extended
+  `isSubSectionOwnerOrAdmin` to the same dual-resolution shape as `isCourseOwnerOrAdmin`
+  (body field for create, params-id lookup for update/delete). Frontend: `LessonManager`
+  gained inline rename, a "replace video" upload button, and a delete confirm dialog —
+  same interaction vocabulary as `SectionManager`'s `SectionRow`. Live-verified via curl
+  (rename-only leaves video unchanged; replace produces a new `videoPublicId` and the old
+  one is confirmed gone from Cloudinary; delete confirmed gone from both DB and
+  Cloudinary) and via Playwright driving the real UI. One test-only gotcha hit along the
+  way: two consecutive mutations that show the *same* toast text
+  ("Lesson updated successfully") make toast-text a bad completion signal for the second
+  one — a lingering toast from the first action can satisfy `waitForSelector` before the
+  second mutation actually finishes. Use `page.waitForResponse()` on the specific network
+  call instead when actions share toast copy.
 
 ## In Progress
 
@@ -101,9 +117,6 @@ course detail page, not a real flow — Payment isn't wired up.
 ## Next Up
 
 Pick one (per `ai-workflow-rules.md` scoping rule — one at a time):
-- SubSection update/delete (rename a lesson, replace its video, remove it) — mirrors how
-  Course/Section update/delete followed their own create+read units. Will need the same
-  best-effort Cloudinary video cleanup pattern as Course's thumbnail.
 - Course search/filter is currently client-side only (catalog page filters an
   already-fetched full course list) — `GET /courses` has no server-side query params;
   revisit if the catalog needs to scale past fetch-everything

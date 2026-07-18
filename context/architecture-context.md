@@ -26,9 +26,7 @@ Client (React) --axios--> /api/v1/* (Express) --> service layer --> repository l
 - Request layering is strict and consistently followed for User, Tag, Course, Section,
   and SubSection: `route → validate(zodSchema) middleware → controller → service →
   repository → Mongoose model`. Controllers never call Mongoose directly.
-- Course and Section both have full CRUD. SubSection has create + read only so far
-  (mirrors how Course/Section themselves were staged) — update/delete, plus the
-  Cloudinary video cleanup that'll need, are a follow-up unit.
+- Course, Section, and SubSection all have full CRUD now.
 - Review/Payment/CourseProgress models exist but have no service/repository/controller/
   route layer yet — only the Mongoose schema exists for these today.
 
@@ -87,8 +85,10 @@ Client (React) --axios--> /api/v1/* (Express) --> service layer --> repository l
     update 500'd before an optional-chaining fix.
   - `isSectionOwnerOrAdmin` (Section update/delete) looks up the section from
     `req.params.id` first, then that section's course.
-  - `isSubSectionOwnerOrAdmin` (SubSection create) resolves via `req.body.section` →
-    that Section → its course, one hop deeper than `isSectionOwnerOrAdmin`.
+  - `isSubSectionOwnerOrAdmin` resolves the section from `req.body?.section` (create) or
+    by looking up the SubSection via `req.params.id` first (update/delete) — same
+    dual-resolution shape as `isCourseOwnerOrAdmin`, one hop deeper (SubSection →
+    Section → Course).
 
 ## File Upload Model
 
@@ -143,9 +143,10 @@ Only things whose violation is a bug — not preferences:
   cascades to delete every Section referencing it (`sectionRepository.deleteByCourse`).
   None of this is wrapped in a transaction (none are used anywhere in this codebase) — a
   failure mid-sequence is a known, accepted gap.
-- **Cloudinary cleanup is always best-effort**: `safeDeleteCloudinaryImage` swallows its
-  own errors — an old thumbnail is deleted only *after* the replacing DB write succeeds,
-  and a failed cleanup must never undo an otherwise-successful create/update/delete.
+- **Cloudinary cleanup is always best-effort**: `safeDeleteCloudinaryImage` /
+  `safeDeleteCloudinaryVideo` swallow their own errors — an old thumbnail/video is
+  deleted only *after* the replacing DB write succeeds, and a failed cleanup must never
+  undo an otherwise-successful create/update/delete.
 - **Mongoose `required` on an array field never enforces "at least one element"**
   (verified empirically) — arrays default to `[]`, which always satisfies `required`'s
   null/undefined check. Use a custom `validate: (arr) => arr.length > 0` function

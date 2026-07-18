@@ -30,3 +30,30 @@ export const createSubSectionRequest = async ({ title, description, section, vid
         throw getErrorMessage(error);
     }
 };
+
+export const updateSubSectionRequest = async ({ id, title, description, video }) => {
+    try {
+        const formData = new FormData();
+        if (title !== undefined) formData.append('title', title);
+        if (description !== undefined) formData.append('description', description);
+        if (video) formData.append('video', video);
+
+        const response = await axios.put(`/api/v1/subsections/${id}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        return response.data;
+    } catch (error) {
+        console.log('error updating lesson', error);
+        throw getErrorMessage(error);
+    }
+};
+
+export const deleteSubSectionRequest = async ({ id }) => {
+    try {
+        const response = await axios.delete(`/api/v1/subsections/${id}`);
+        return response.data;
+    } catch (error) {
+        console.log('error deleting lesson', error);
+        throw getErrorMessage(error);
+    }
+};

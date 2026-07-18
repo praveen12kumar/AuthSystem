@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '../config/serverConfig.js';
 import courseRepository from '../repository/courseRepository.js';
 import sectionRepository from '../repository/sectionRepository.js';
+import subSectionRepository from '../repository/subSectionRepository.js';
 import userRepository from '../repository/userRepository.js';
 import {
   customErrorResponse,
@@ -148,13 +149,28 @@ export const isCourseOwnerOrAdmin = async (req, res, next) => {
   }
 };
 
-// Must run after isAuthenticated (+ validate(), since it reads req.body.section).
-// Resolves ownership by walking SubSection-create's only available id
-// (req.body.section) up to its Section, then that Section's Course. ADMIN
-// bypasses the ownership check.
+// Must run after isAuthenticated (+ validate() for create, since it reads
+// req.body.section). Resolves the section either from req.body.section
+// (SubSection create) or by looking up the subsection via req.params.id
+// (SubSection update/delete - no section id in those requests), then walks
+// up to that section's course. ADMIN bypasses the ownership check.
 export const isSubSectionOwnerOrAdmin = async (req, res, next) => {
   try {
-    const section = await sectionRepository.getById(req.body?.section);
+    let sectionId = req.body?.section;
+    if (!sectionId) {
+      const subSection = await subSectionRepository.getById(req.params.id);
+      if (!subSection) {
+        return res.status(StatusCodes.NOT_FOUND).json(
+          customErrorResponse({
+            explanation: 'No lesson exists with this id',
+            message: 'Lesson not found'
+          })
+        );
+      }
+      sectionId = subSection.section;
+    }
+
+    const section = await sectionRepository.getById(sectionId);
     if (!section) {
       return res.status(StatusCodes.NOT_FOUND).json(
         customErrorResponse({
@@ -182,8 +198,8 @@ export const isSubSectionOwnerOrAdmin = async (req, res, next) => {
     if (error.name === 'CastError') {
       return res.status(StatusCodes.BAD_REQUEST).json(
         customErrorResponse({
-          explanation: 'Section id is not a valid identifier',
-          message: 'Invalid section id'
+          explanation: 'Section or lesson id is not a valid identifier',
+          message: 'Invalid id'
         })
       );
     }
