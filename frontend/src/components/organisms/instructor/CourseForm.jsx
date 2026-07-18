@@ -159,12 +159,18 @@ const CourseForm = ({
                   return (
                     <Badge
                       key={tag._id}
-                      onClick={() => toggleTag(tag._id)}
+                      asChild
                       variant={selected ? 'default' : 'outline'}
                       className="cursor-pointer px-3 py-1.5 text-sm"
                     >
-                      {tag.name}
-                      {selected && <X className="size-3" />}
+                      <button
+                        type="button"
+                        onClick={() => toggleTag(tag._id)}
+                        aria-pressed={selected}
+                      >
+                        {tag.name}
+                        {selected && <X className="size-3" />}
+                      </button>
                     </Badge>
                   );
                 })}

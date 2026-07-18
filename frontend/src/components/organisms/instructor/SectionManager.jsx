@@ -77,6 +77,7 @@ const SectionRow = ({ section, courseId }) => {
               variant="ghost"
               onClick={handleSave}
               disabled={isUpdating}
+              aria-label="Save section title"
             >
               <Check className="size-4" />
             </Button>
@@ -87,6 +88,7 @@ const SectionRow = ({ section, courseId }) => {
                 setIsEditing(false);
                 setTitle(section.title);
               }}
+              aria-label="Cancel rename"
             >
               <X className="size-4" />
             </Button>
@@ -114,6 +116,7 @@ const SectionRow = ({ section, courseId }) => {
               size="icon-sm"
               variant="ghost"
               onClick={() => setIsEditing(true)}
+              aria-label={`Rename ${section.title}`}
             >
               <Pencil className="size-4" />
             </Button>
@@ -123,6 +126,7 @@ const SectionRow = ({ section, courseId }) => {
                   size="icon-sm"
                   variant="ghost"
                   className="text-destructive hover:text-destructive"
+                  aria-label={`Delete ${section.title}`}
                 >
                   <Trash2 className="size-4" />
                 </Button>

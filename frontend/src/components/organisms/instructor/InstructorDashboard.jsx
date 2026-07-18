@@ -123,6 +123,7 @@ const InstructorDashboard = ({ courses, isLoading, onDelete, isDeleting }) => {
                         <Button
                           variant="outline"
                           size="sm"
+                          aria-label={`Delete ${course.title}`}
                           className="text-destructive hover:text-destructive"
                         >
                           <Trash2 />

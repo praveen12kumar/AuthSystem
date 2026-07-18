@@ -1,5 +1,18 @@
 # UI Context
 
+## Tooling
+
+`.claude/skills/ui-ux-pro-max` (installed from
+[nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill),
+MIT-licensed, verified to make no network calls) is available for UI/UX design
+guidance — searchable style/color/typography/UX-guideline databases via
+`python .claude/skills/ui-ux-pro-max/scripts/search.py`. Useful for auditing existing UI
+against accessibility/interaction/animation best practices (`--domain ux`) or generating
+a full design system for a genuinely new surface (`--design-system`). Don't use it to
+regenerate the app's established brand (violet/Outfit, see Design Tokens below) without
+being explicitly asked to re-theme — it's for review/audit and net-new decisions, not for
+silently overriding existing ones.
+
 ## Component Library
 
 shadcn/ui, `new-york` style, `neutral` base color, CSS variables enabled, Lucide icons
@@ -46,6 +59,27 @@ Import `motion` aliased as `Motion` (`import { motion as Motion } from 'framer-m
 JSX tags aren't otherwise recognized as "used" without `eslint-plugin-react`. Components
 imported and used as JSX elements normally (`Button`, `AnimatePresence`) don't need this
 since they're already capitalized.
+
+`App.jsx` wraps the whole tree in `<MotionConfig reducedMotion="user">` — every
+`Motion.*` animation in the app automatically respects the OS-level
+`prefers-reduced-motion` setting for free. Don't add per-component reduced-motion
+handling; it's already covered globally.
+
+## Accessibility
+
+- **Icon-only interactive elements need an explicit `aria-label`** (the shadcn `Button`/
+  `Input` focus-ring styling already covers visible focus states, but not the accessible
+  name). Pattern: `aria-label={`Delete ${item.title}`}` when the label needs to
+  disambiguate between repeated rows (see `SectionManager.jsx`, `LessonManager.jsx`,
+  `InstructorDashboard.jsx`). A `title` attribute alone is not a reliable substitute —
+  it's a tooltip, not consistently exposed as an accessible name.
+- **Toggleable filter/selection chips must be real, focusable controls, not a styled
+  `<span onClick>`.** The shadcn `Badge` renders a plain `<span>` by default, which
+  can't be tabbed to or activated with Enter/Space. For anything clickable, use
+  `<Badge asChild>` wrapping a real `<button type="button" aria-pressed={selected}>` —
+  see `CourseCatalog.jsx`'s tag filter and `CourseForm.jsx`'s tag selector. (Badges used
+  purely as static labels, or already wrapped in a real `<Link>` like Home's
+  browse-by-category chips, don't need this — only ones with their own `onClick`.)
 
 ## Layout Patterns
 

@@ -73,6 +73,7 @@ const Header = () => {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
+                  aria-label="Open account menu"
                   className="h-auto gap-2 rounded-full px-2 py-1"
                 >
                   <Avatar>

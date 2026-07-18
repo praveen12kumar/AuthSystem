@@ -85,6 +85,7 @@ const LessonRow = ({ lesson, sectionId }) => {
             variant="ghost"
             onClick={handleSave}
             disabled={isUpdating}
+            aria-label="Save lesson title"
           >
             <Check className="size-4" />
           </Button>
@@ -95,6 +96,7 @@ const LessonRow = ({ lesson, sectionId }) => {
               setIsEditing(false);
               setTitle(lesson.title);
             }}
+            aria-label="Cancel rename"
           >
             <X className="size-4" />
           </Button>
@@ -116,6 +118,7 @@ const LessonRow = ({ lesson, sectionId }) => {
               className="hidden"
               onChange={handleReplaceVideo}
               disabled={isPending}
+              aria-label={`Replace video for ${lesson.title}`}
             />
           </Label>
           <Button
@@ -123,6 +126,7 @@ const LessonRow = ({ lesson, sectionId }) => {
             variant="ghost"
             onClick={() => setIsEditing(true)}
             disabled={isPending}
+            aria-label={`Rename ${lesson.title}`}
           >
             <Pencil className="size-4" />
           </Button>
@@ -133,6 +137,7 @@ const LessonRow = ({ lesson, sectionId }) => {
                 variant="ghost"
                 className="text-destructive hover:text-destructive"
                 disabled={isPending}
+                aria-label={`Delete ${lesson.title}`}
               >
                 <Trash2 className="size-4" />
               </Button>

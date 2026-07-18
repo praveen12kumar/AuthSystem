@@ -52,7 +52,7 @@ const CourseCatalog = ({
             {tags.map((tag) => (
               <Badge
                 key={tag._id}
-                onClick={() => onTagSelect(tag._id)}
+                asChild
                 variant={activeTag === tag._id ? 'default' : 'outline'}
                 className={cn(
                   'cursor-pointer px-3 py-1.5 text-sm',
@@ -61,8 +61,14 @@ const CourseCatalog = ({
                     : 'hover:bg-accent hover:text-accent-foreground'
                 )}
               >
-                {tag.name}
-                {activeTag === tag._id && <X className="size-3" />}
+                <button
+                  type="button"
+                  onClick={() => onTagSelect(tag._id)}
+                  aria-pressed={activeTag === tag._id}
+                >
+                  {tag.name}
+                  {activeTag === tag._id && <X className="size-3" />}
+                </button>
               </Badge>
             ))}
           </div>
