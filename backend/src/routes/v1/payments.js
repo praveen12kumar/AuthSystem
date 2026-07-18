@@ -1,6 +1,7 @@
 import express from 'express';
 
 import {
+  cancelPayment,
   createOrder,
   getEarnings,
   getMyPayments,
@@ -8,6 +9,7 @@ import {
 } from '../../controller/paymentController.js';
 import { authorize, isAuthenticated } from '../../middlewares/authMiddleware.js';
 import {
+  cancelPaymentSchema,
   createOrderSchema,
   verifyPaymentSchema
 } from '../../validators/paymentSchema.js';
@@ -31,6 +33,13 @@ router.post(
   isAuthenticated,
   validate(verifyPaymentSchema),
   verifyPayment
+);
+
+router.post(
+  '/cancel',
+  isAuthenticated,
+  validate(cancelPaymentSchema),
+  cancelPayment
 );
 
 export default router;

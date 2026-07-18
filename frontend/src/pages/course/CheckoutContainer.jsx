@@ -6,6 +6,7 @@ import Header from '@/components/molecules/header/Header';
 import CheckoutSummary from '@/components/organisms/course/CheckoutSummary';
 import { useMyProfile } from '@/hooks/apis/auth/useMyProfile';
 import { useCourse } from '@/hooks/apis/course/useCourse';
+import { useCancelPayment } from '@/hooks/apis/payment/useCancelPayment';
 import { useCreateOrder } from '@/hooks/apis/payment/useCreateOrder';
 import { useVerifyPayment } from '@/hooks/apis/payment/useVerifyPayment';
 import { useAuth } from '@/hooks/conext/useAuth';
@@ -20,6 +21,7 @@ const CheckoutContainer = () => {
   const { profile } = useMyProfile();
   const { createOrder, isPending: isCreatingOrder } = useCreateOrder();
   const { verifyPayment, isPending: isVerifying } = useVerifyPayment();
+  const { cancelPayment } = useCancelPayment();
 
   const isEnrolled =
     course?.studentsEnrolled?.some((studentId) => String(studentId) === auth.user?.id) ??
@@ -75,11 +77,21 @@ const CheckoutContainer = () => {
         } catch {
           // toast already handled in useVerifyPayment
         }
+      },
+      modal: {
+        // Fires when the user closes the widget without paying - without
+        // this, the PENDING payment row created above never gets updated
+        // and sits in the database forever. Harmless no-op server-side if
+        // this ever fires after a successful verify already ran.
+        ondismiss: () => {
+          cancelPayment({ razorpay_order_id: order.orderId });
+        }
       }
     });
 
     razorpay.on('payment.failed', () => {
       toast.error('Payment failed - you have not been charged.');
+      cancelPayment({ razorpay_order_id: order.orderId });
     });
 
     razorpay.open();

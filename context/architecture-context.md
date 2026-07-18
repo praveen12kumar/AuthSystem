@@ -227,6 +227,17 @@ Client (React) --axios--> /api/v1/* (Express) --> service layer --> repository l
   Razorpay's side but never reaches this endpoint (closed tab, network drop) leaves the
   `Payment` stuck at `PENDING` and the user unenrolled — a known gap, see
   `progress-tracker.md`.
+- **Abandoned checkouts are cleaned up, but only the case where the widget itself fires
+  an event.** The Razorpay widget's `modal.ondismiss` (closed without paying) and
+  `payment.failed` (attempted, rejected by bank/card) handlers both call `POST
+  /payments/cancel {razorpay_order_id}`, which flips that specific `PENDING` payment to
+  `FAILED` — before this, every abandoned checkout left a permanent `PENDING` row, since
+  nothing ever touched it again. `cancelPaymentService` only ever acts on a payment that
+  is still `PENDING` and belongs to the caller — if `verify` already settled it as
+  `SUCCESS`/`FAILED` first (e.g. a stray dismiss event after a fast verify), cancel is a
+  no-op rather than overwriting the real outcome. This is a distinct scenario from the
+  webhook gap above: it only fires when the browser is still there to see the widget
+  close, not when a real success never reaches `/verify` at all.
 - Razorpay `receipt` is capped at 40 chars by Razorpay itself — built as
   `rcpt_${courseId.slice(-8)}_${Date.now()}`, not the full 24-char ObjectId.
 - `GET /payments/my` (authenticated) lists the caller's own `status: 'SUCCESS'` payments

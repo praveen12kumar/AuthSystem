@@ -225,3 +225,38 @@ export const verifyPaymentService = async (data, userId) => {
     handlePaymentError(error);
   }
 };
+
+// Marks an abandoned checkout (widget dismissed, or a payment.failed event
+// with no matching verify call) as FAILED instead of leaving it PENDING
+// forever. Only ever touches a payment that is still PENDING - if verify
+// already ran and settled it as SUCCESS/FAILED, a late/duplicate cancel
+// (e.g. the dismiss handler firing after a fast verify) is a no-op rather
+// than overwriting the real outcome.
+export const cancelPaymentService = async (orderId, userId) => {
+  try {
+    const payment = await paymentRepository.getByOrderId(orderId);
+    if (!payment) {
+      throw new ClientError({
+        message: 'Payment not found',
+        statusCode: StatusCodes.NOT_FOUND,
+        explanation: ['No payment exists for this order']
+      });
+    }
+
+    if (String(payment.user) !== userId) {
+      throw new ClientError({
+        message: 'This payment does not belong to you',
+        statusCode: StatusCodes.FORBIDDEN,
+        explanation: ['You can only cancel your own payments']
+      });
+    }
+
+    if (payment.status !== 'PENDING') {
+      return payment;
+    }
+
+    return await paymentRepository.update(payment._id, { status: 'FAILED' });
+  } catch (error) {
+    handlePaymentError(error);
+  }
+};

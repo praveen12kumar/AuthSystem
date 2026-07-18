@@ -1,6 +1,7 @@
 import { StatusCodes } from 'http-status-codes';
 
 import {
+  cancelPaymentService,
   createOrderService,
   getInstructorEarningsService,
   getMyPaymentsService,
@@ -53,6 +54,23 @@ export const getEarnings = async (req, res) => {
     return res
       .status(StatusCodes.OK)
       .json(successResponse(response, 'Earnings fetched successfully'));
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json(customErrorResponse(error));
+    }
+    return res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json(internalErrorResponse(error));
+  }
+};
+
+// mark an abandoned/dismissed checkout as FAILED instead of leaving it PENDING
+export const cancelPayment = async (req, res) => {
+  try {
+    const response = await cancelPaymentService(req.body.razorpay_order_id, req.user.id);
+    return res
+      .status(StatusCodes.OK)
+      .json(successResponse(response, 'Payment cancelled'));
   } catch (error) {
     if (error.statusCode) {
       return res.status(error.statusCode).json(customErrorResponse(error));

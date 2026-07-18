@@ -284,6 +284,21 @@ Razorpay, instead of jumping straight from "Enroll Now" into the payment widget.
   running backend and the real dev Redis with 6 real HTTP calls (not just the
   automated suite) — including against a genuine user account, whose test-induced
   lockout was then cleared so their real ability to sign in wasn't left broken.
+- **Abandoned/cancelled checkouts no longer leave a permanent `PENDING` `Payment` row.**
+  User-reported live: deliberately cancelling a Razorpay checkout still left the payment
+  stuck at `PENDING` in the database forever, since nothing ever called `/verify` and
+  nothing else ever touched that row again. Added `POST /payments/cancel
+  {razorpay_order_id}` (`cancelPaymentService`) and wired it to the Razorpay widget's
+  `modal.ondismiss` (closed without paying) and `payment.failed` (attempted, rejected)
+  events in `CheckoutContainer`. Idempotent/ownership-checked the same way `verify` is —
+  only flips a payment that is still `PENDING` and belongs to the caller, so a stray
+  dismiss event after a fast successful verify can't clobber a real `SUCCESS` back to
+  `FAILED`. This is a distinct gap from the payment webhook one below — it only covers
+  the case where the browser is still there to see the widget close, not a payment that
+  succeeds on Razorpay's side but never reaches this app at all. 5 new automated tests
+  (25 total across the Payment suite): cancels a real `PENDING` row, no-ops on an
+  already-`SUCCESS` payment, rejects cancelling someone else's payment, 404s on an
+  unknown order id, 401s unauthenticated.
 
 ## In Progress
 

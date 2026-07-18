@@ -50,3 +50,13 @@ export const verifyPaymentRequest = async ({
         throw getErrorMessage(error);
     }
 };
+
+export const cancelPaymentRequest = async ({ razorpay_order_id }) => {
+    try {
+        const response = await axios.post('/api/v1/payments/cancel', { razorpay_order_id });
+        return response.data;
+    } catch (error) {
+        console.log('error cancelling payment', error);
+        throw getErrorMessage(error);
+    }
+};

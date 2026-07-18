@@ -283,3 +283,107 @@ describe('POST /api/v1/payments/verify', () => {
     expect(matches).toHaveLength(1);
   });
 });
+
+describe('POST /api/v1/payments/cancel', () => {
+  afterEach(cleanup);
+
+  const createPendingPayment = async (student, course, amount = 1000) =>
+    Payment.create({
+      user: student._id,
+      course: course._id,
+      amount,
+      currency: 'INR',
+      status: 'PENDING',
+      paymentGateway: 'razorpay',
+      gatewayOrderId: `order_${Date.now()}_${Math.random().toString(36).slice(2)}`
+    });
+
+  it('marks an abandoned PENDING payment as FAILED', async () => {
+    const instructor = await createUser({ role: 'INSTRUCTOR' });
+    const student = await createUser();
+    const course = await createCourse(instructor);
+    const payment = await createPendingPayment(student, course);
+
+    const res = await request(app)
+      .post('/api/v1/payments/cancel')
+      .set('Authorization', authHeader(student))
+      .send({ razorpay_order_id: payment.gatewayOrderId });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.status).toBe('FAILED');
+
+    const updatedPayment = await Payment.findById(payment._id);
+    expect(updatedPayment.status).toBe('FAILED');
+  });
+
+  it('does not overwrite a payment that already succeeded (e.g. a late/duplicate dismiss event)', async () => {
+    const instructor = await createUser({ role: 'INSTRUCTOR' });
+    const student = await createUser();
+    const course = await createCourse(instructor);
+    const payment = await createPendingPayment(student, course);
+    const paymentId = 'pay_fake123';
+    const signature = realSignature(payment.gatewayOrderId, paymentId);
+
+    await request(app)
+      .post('/api/v1/payments/verify')
+      .set('Authorization', authHeader(student))
+      .send({
+        razorpay_order_id: payment.gatewayOrderId,
+        razorpay_payment_id: paymentId,
+        razorpay_signature: signature
+      });
+
+    const res = await request(app)
+      .post('/api/v1/payments/cancel')
+      .set('Authorization', authHeader(student))
+      .send({ razorpay_order_id: payment.gatewayOrderId });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.status).toBe('SUCCESS'); // unchanged, not clobbered back to FAILED
+
+    const updatedCourse = await Course.findById(course._id);
+    expect(updatedCourse.studentsEnrolled.map(String)).toContain(String(student._id));
+  });
+
+  it("rejects cancelling a payment that belongs to someone else", async () => {
+    const instructor = await createUser({ role: 'INSTRUCTOR' });
+    const student = await createUser();
+    const otherStudent = await createUser();
+    const course = await createCourse(instructor);
+    const payment = await createPendingPayment(student, course);
+
+    const res = await request(app)
+      .post('/api/v1/payments/cancel')
+      .set('Authorization', authHeader(otherStudent))
+      .send({ razorpay_order_id: payment.gatewayOrderId });
+
+    expect(res.status).toBe(403);
+
+    const updatedPayment = await Payment.findById(payment._id);
+    expect(updatedPayment.status).toBe('PENDING'); // untouched
+  });
+
+  it('404s for an unknown order id', async () => {
+    const student = await createUser();
+
+    const res = await request(app)
+      .post('/api/v1/payments/cancel')
+      .set('Authorization', authHeader(student))
+      .send({ razorpay_order_id: 'order_does_not_exist' });
+
+    expect(res.status).toBe(404);
+  });
+
+  it('rejects an unauthenticated request with 401', async () => {
+    const instructor = await createUser({ role: 'INSTRUCTOR' });
+    const student = await createUser();
+    const course = await createCourse(instructor);
+    const payment = await createPendingPayment(student, course);
+
+    const res = await request(app)
+      .post('/api/v1/payments/cancel')
+      .send({ razorpay_order_id: payment.gatewayOrderId });
+
+    expect(res.status).toBe(401);
+  });
+});
