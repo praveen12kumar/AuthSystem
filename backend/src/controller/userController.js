@@ -3,9 +3,11 @@ import { StatusCodes } from 'http-status-codes';
 import {
   changePasswordService,
   forgotPasswordService,
+  getMyProfileService,
   resetPasswordService,
   signInService,
   signUpService,
+  updateProfileService,
   verifyOtpService,
   verifyUserService
 } from '../services/userService.js';
@@ -137,6 +139,40 @@ export const resetPassword = async (req, res) => {
       .json(successResponse(response, 'Password reset successfully'));
   } catch (error) {
     console.log('user Controller reset password error', error);
+    if (error.statusCode) {
+      return res.status(error.statusCode).json(customErrorResponse(error));
+    }
+    return res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json(internalErrorResponse(error));
+  }
+};
+
+// get my profile
+export const getMyProfile = async (req, res) => {
+  try {
+    const response = await getMyProfileService(req.user.id);
+    return res
+      .status(StatusCodes.OK)
+      .json(successResponse(response, 'Profile fetched successfully'));
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json(customErrorResponse(error));
+    }
+    return res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json(internalErrorResponse(error));
+  }
+};
+
+// update my profile
+export const updateProfile = async (req, res) => {
+  try {
+    const response = await updateProfileService(req.user.id, req.body, req.file);
+    return res
+      .status(StatusCodes.OK)
+      .json(successResponse(response, 'Profile updated successfully'));
+  } catch (error) {
     if (error.statusCode) {
       return res.status(error.statusCode).json(customErrorResponse(error));
     }

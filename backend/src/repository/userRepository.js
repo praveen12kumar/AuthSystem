@@ -9,6 +9,20 @@ const userRepository = {
         return response;
     },
 
+    getProfileById: async function (userId) {
+        const response = await User.findById(userId).select('-password');
+        return response;
+    },
+
+    updateProfile: async function (userId, updates) {
+        const response = await User.findByIdAndUpdate(
+            userId,
+            { $set: updates },
+            { new: true, runValidators: true, context: 'query' }
+        ).select('-password');
+        return response;
+    },
+
     addCourse: async function (userId, courseId) {
         const response = await User.findByIdAndUpdate(
             userId,

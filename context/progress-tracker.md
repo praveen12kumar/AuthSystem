@@ -2,13 +2,14 @@
 
 ## Current Phase
 
-Auth, Tag, Course, Section, SubSection, Payment/Enrollment, and CourseProgress are all
-functionally complete end-to-end, backend **and** frontend. Instructors upload a real
-lesson video per section; students buy a course via Razorpay Checkout, then watch its
-lessons in a dedicated Course Player page (progress tracked per-lesson, not just
-"logged in and enrolled"). A "My Purchases" page lists what a student has bought, and
-the whole app now has a real, user-toggleable light/dark theme. Review is still open
-(see Next Up).
+Auth, Tag, Course, Section, SubSection, Payment/Enrollment, CourseProgress, and Profile
+are all functionally complete end-to-end, backend **and** frontend. Instructors upload
+a real lesson video per section; students buy a course via Razorpay Checkout, then
+watch its lessons in a dedicated Course Player page (progress tracked per-lesson, not
+just "logged in and enrolled"). A "My Purchases" page lists what a student has bought,
+users can view/edit their own profile (name, avatar, about, phone, gender, DOB) and
+change their password from one consolidated page, and the whole app now has a real,
+user-toggleable light/dark theme. Review is still open (see Next Up).
 
 ## Completed
 
@@ -131,6 +132,22 @@ the whole app now has a real, user-toggleable light/dark theme. Review is still 
   player navigation, mark-complete updating the progress bar and checkmark, lesson
   switching, and instructor/admin access without enrollment — all against the real dev
   DB, with all test progress records cleaned up afterward.
+- **Profile page** — `GET/PUT /users/me` wire up the `User` model's previously-unused
+  `avatar`/`profile` (`about`/`phoneNumber`/`gender`/`dob`) fields for the first time;
+  both endpoints explicitly exclude the password hash from the response (dedicated
+  repository methods, not the generic `crudRepository`). Avatar upload reuses the
+  Course-thumbnail Cloudinary pattern exactly. One page at `/profile` with two tabs:
+  Profile (view/edit) and Change Password (the existing authenticated
+  old-password/new-password flow, given a fresh compact form rather than reusing the
+  full-screen `ResetPassword` card, which navigated away to sign-in on success — wrong
+  behavior for a settings tab). The header dropdown's old "Change Password" link now
+  points to `/profile`. See `architecture-context.md` Profile Model and
+  `code-standards.md` for the sparse-`$set` dot-path update pattern and a real bug
+  caught live: sending an unset `<select>`/date field as `''` instead of omitting it
+  fails Zod enum/date validation, unlike free-text fields where `''` is valid. Avatar
+  upload, gender/DOB save, and password change were all live-verified against the real
+  dev DB and account, with test avatars cleaned up from both MongoDB and Cloudinary
+  afterward.
 
 ## In Progress
 

@@ -15,8 +15,27 @@ import {
   markOtpVerified,
   verifyOtp
 } from '../utils/common/authUtils.js';
+import {
+  deleteImageFromCloudinary,
+  uploadImageToCloudinary
+} from '../utils/common/imageUpload.js';
 import ClientError from '../utils/errors/clientError.js';
 import { ValidationError } from '../utils/errors/validationError.js';
+
+// Cleaning up an old/orphaned Cloudinary avatar is best-effort: it must never
+// fail an otherwise-successful profile update. A user's very first avatar is
+// the auto-generated ui-avatars.com placeholder (see userSchema.js), which
+// has no publicId and is simply not cleaned up - only real uploads are.
+const safeDeleteCloudinaryImage = async (publicId) => {
+  if (!publicId) {
+    return;
+  }
+  try {
+    await deleteImageFromCloudinary(publicId);
+  } catch (error) {
+    console.log('Failed to delete Cloudinary avatar (non-fatal):', publicId, error.message);
+  }
+};
 
 // SignUp service
 export const signUpService = async (data) => {
@@ -241,6 +260,78 @@ export const changePasswordService = async (data) => {
     console.log('User Service error', error);
     if (error.name === 'ValidationError') {
       throw new ValidationError({ error: error.errors }, error.message);
+    }
+    throw error;
+  }
+};
+
+// get current user's own profile
+
+export const getMyProfileService = async (userId) => {
+  try {
+    const user = await userRepository.getProfileById(userId);
+    if (!user) {
+      throw new ClientError({
+        message: 'User not found',
+        statusCode: StatusCodes.NOT_FOUND,
+        explanation: ['Invalid data sent from the client']
+      });
+    }
+    return user;
+  } catch (error) {
+    console.log('User Service error', error);
+    if (error.name === 'ValidationError') {
+      throw new ValidationError({ error: error.errors }, error.message);
+    }
+    throw error;
+  }
+};
+
+// update current user's own profile
+
+export const updateProfileService = async (userId, data, avatarFile) => {
+  try {
+    const existingUser = await userRepository.getProfileById(userId);
+    if (!existingUser) {
+      throw new ClientError({
+        message: 'User not found',
+        statusCode: StatusCodes.NOT_FOUND,
+        explanation: ['Invalid data sent from the client']
+      });
+    }
+
+    const updates = {};
+    if (data.firstName !== undefined) updates.firstName = data.firstName;
+    if (data.lastName !== undefined) updates.lastName = data.lastName;
+    if (data.about !== undefined) updates['profile.about'] = data.about;
+    if (data.phoneNumber !== undefined) updates['profile.phoneNumber'] = data.phoneNumber;
+    if (data.gender !== undefined) updates['profile.gender'] = data.gender;
+    if (data.dob !== undefined) updates['profile.dob'] = data.dob;
+
+    if (avatarFile) {
+      const uploadResult = await uploadImageToCloudinary(avatarFile, 'avatars');
+      updates.avatar = uploadResult.secure_url;
+      updates.avatarPublicId = uploadResult.public_id;
+    }
+
+    const updatedUser = await userRepository.updateProfile(userId, updates);
+
+    if (avatarFile) {
+      await safeDeleteCloudinaryImage(existingUser.avatarPublicId);
+    }
+
+    return updatedUser;
+  } catch (error) {
+    console.log('User Service error', error);
+    if (error.name === 'ValidationError') {
+      throw new ValidationError({ error: error.errors }, error.message);
+    }
+    if (error.name === 'CastError') {
+      throw new ClientError({
+        message: 'Invalid id',
+        statusCode: StatusCodes.BAD_REQUEST,
+        explanation: ['User id is not a valid identifier']
+      });
     }
     throw error;
   }

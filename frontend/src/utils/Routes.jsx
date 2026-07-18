@@ -16,6 +16,7 @@ import Home from '@/pages/home/Home';
 import CourseFormContainer from '@/pages/instructor/CourseFormContainer';
 import InstructorDashboardContainer from '@/pages/instructor/InstructorDashboardContainer';
 import NotFound from '@/pages/notFound/NotFound';
+import ProfileContainer from '@/pages/profile/ProfileContainer';
 import MyPurchasesContainer from '@/pages/purchases/MyPurchasesContainer';
 
 const INSTRUCTOR_ROLES = ['ADMIN', 'INSTRUCTOR'];
@@ -32,6 +33,7 @@ export const AppRoutes = ()=>{
         <Route path='/courses/:id/learn' element={<ProtectedRoute><CoursePlayerContainer/></ProtectedRoute>}/>
         <Route path='/courses/:id/learn/:subSectionId' element={<ProtectedRoute><CoursePlayerContainer/></ProtectedRoute>}/>
         <Route path='/my-purchases' element={<ProtectedRoute><MyPurchasesContainer/></ProtectedRoute>}/>
+        <Route path='/profile' element={<ProtectedRoute><ProfileContainer/></ProtectedRoute>}/>
         <Route path='/instructor/courses' element={<ProtectedRoute roles={INSTRUCTOR_ROLES}><InstructorDashboardContainer/></ProtectedRoute>}/>
         <Route path='/instructor/courses/new' element={<ProtectedRoute roles={INSTRUCTOR_ROLES}><CourseFormContainer/></ProtectedRoute>}/>
         <Route path='/instructor/courses/:id/edit' element={<ProtectedRoute roles={INSTRUCTOR_ROLES}><CourseFormContainer/></ProtectedRoute>}/>

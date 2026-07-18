@@ -132,8 +132,8 @@ const Header = () => {
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem asChild>
-                  <Link to="/auth/change-password">
-                    <User /> Change Password
+                  <Link to="/profile">
+                    <User /> Profile
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />

@@ -1,8 +1,9 @@
 import express from 'express';
 
-import { changePassword,forgotPassword, resetPassword, signin, signup, verifyEmail, verifyOtp } from '../../controller/userController.js';
+import { changePassword,forgotPassword, getMyProfile, resetPassword, signin, signup, updateProfile, verifyEmail, verifyOtp } from '../../controller/userController.js';
 import { isAuthenticated } from '../../middlewares/authMiddleware.js';
-import { changePasswordSchema, forgotPasswordSchema, resetPasswordSchema, userSignInSchema,userSignUpSchema, verifyOtpSchema, verifyUserSchema } from '../../validators/userSchema.js';
+import { uploadSingle } from '../../middlewares/uploadMiddleware.js';
+import { changePasswordSchema, forgotPasswordSchema, resetPasswordSchema, updateProfileSchema, userSignInSchema,userSignUpSchema, verifyOtpSchema, verifyUserSchema } from '../../validators/userSchema.js';
 import { validate } from '../../validators/zodValidators.js';
 
 
@@ -21,6 +22,16 @@ router.post('/verify-otp', validate(verifyOtpSchema), verifyOtp );
 router.post('/change-password', validate(changePasswordSchema), changePassword);
 
 router.post('/reset-password', isAuthenticated, validate(resetPasswordSchema), resetPassword);
+
+router.get('/me', isAuthenticated, getMyProfile);
+
+router.put(
+  '/me',
+  isAuthenticated,
+  uploadSingle('avatar'),
+  validate(updateProfileSchema),
+  updateProfile
+);
 
 
 

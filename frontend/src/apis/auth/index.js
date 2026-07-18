@@ -116,3 +116,50 @@ export const resetPasswordRequest = async({oldPassword, newPassword})=>{
         throw getErrorMessage(error);
     }
 };
+
+// get my profile
+
+export const getMyProfileRequest = async () => {
+    try {
+        const response = await axios.get('/api/v1/users/me');
+        return response.data;
+    } catch (error) {
+        console.log('error fetching profile', error);
+        throw getErrorMessage(error);
+    }
+};
+
+// update my profile - multipart since avatar is an optional file alongside
+// text fields, same shape as course create/update.
+
+export const updateProfileRequest = async ({
+    firstName,
+    lastName,
+    about,
+    phoneNumber,
+    gender,
+    dob,
+    avatar
+}) => {
+    try {
+        const formData = new FormData();
+        if (firstName !== undefined) formData.append('firstName', firstName);
+        if (lastName !== undefined) formData.append('lastName', lastName);
+        if (about !== undefined) formData.append('about', about);
+        if (phoneNumber !== undefined) formData.append('phoneNumber', phoneNumber);
+        // gender/dob are only ever valid as a real value or entirely absent -
+        // an empty string fails the backend's enum/date validation, unlike
+        // about/phoneNumber where an empty string is a legitimate "cleared" value.
+        if (gender) formData.append('gender', gender);
+        if (dob) formData.append('dob', dob);
+        if (avatar) formData.append('avatar', avatar);
+
+        const response = await axios.put('/api/v1/users/me', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        return response.data;
+    } catch (error) {
+        console.log('error updating profile', error);
+        throw getErrorMessage(error);
+    }
+};

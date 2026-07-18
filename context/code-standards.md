@@ -121,6 +121,12 @@
   (`/courses/:id/sections`) — keeps every domain's router flat and consistent with
   Tag/Course, rather than mixing two routing styles. The query param name matches the
   FK field name (`course`, not `courseId`).
+- **Partial updates to a nested sub-document**: build a sparse `$set` object using
+  dot-path keys (`'profile.about'`, `'profile.gender'`) containing only the fields the
+  caller actually sent, rather than replacing the whole sub-document
+  (`updates.profile = {...}`) or fetching-then-saving — a `$set: {'profile.about': x}`
+  touches only that leaf field, leaving sibling fields (`phoneNumber`, `gender`, `dob`)
+  untouched even if the request omitted them. See `updateProfileService`.
 - **Idempotent set-membership updates** (e.g. enrolling a student): use `$addToSet`, not
   `$push`, when the same write might legitimately be retried (`courseRepository.addStudent`
   guards against a duplicate/retried payment-verification call double-enrolling the same
@@ -184,6 +190,15 @@
   (`apis/course/index.js`) build a `FormData` from a plain object (`buildCourseFormData`)
   — `tags` must be `JSON.stringify`'d before appending, matching the backend's
   `z.preprocess()` expectation. Don't call these with a plain JSON object.
+- **Optional `<select>`/date fields in a multipart request body need an empty-string
+  guard, unlike optional free-text fields**: a controlled form field that starts as
+  `''` (nothing selected/entered yet) and is sent unconditionally will submit an empty
+  string, not omit the field — fine for a free-text field (`z.string().optional()`
+  accepts `''`), but an enum (`z.enum([...]).optional()`) or a `Date`-backed field only
+  accepts a real value or true absence, so `''` fails validation. Found live via the
+  Profile form: `about`/`phoneNumber` can always be sent (`!== undefined`), but
+  `gender`/`dob` must be conditioned on truthiness (`if (gender) formData.append(...)`)
+  — see `apis/auth/index.js`'s `updateProfileRequest`.
 - **Price display is USD-only, presentational**: the `Course` schema has no currency
   field, just a `Number`. `CourseCard`/`CourseDetail`/`InstructorDashboard` hardcode a
   `$` prefix — this is a display assumption, not a stored/validated currency; revisit if

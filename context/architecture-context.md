@@ -10,7 +10,7 @@
   OTP state, not for sessions or general caching.
 - **Email**: `nodemailer` + `ejs` templates (OTP, password reset).
 - **File upload**: `multer` (memory storage, not disk) + `cloudinary` (image storage/CDN)
-  — wired up for Course `thumbnail`; see File Upload Model below.
+  — wired up for Course `thumbnail` and User `avatar`; see File Upload Model below.
 - **Payments**: `razorpay` (Standard Checkout) — order creation server-side, payment
   confirmation client-side via the Checkout.js widget, success verified server-side via
   HMAC-SHA256 signature check. See Payment Model below.
@@ -121,6 +121,37 @@ Client (React) --axios--> /api/v1/* (Express) --> service layer --> repository l
 - Any route accepting a file is `multipart/form-data`, not JSON: numeric fields need
   `z.coerce.number()`, array fields need a JSON-encoded string + `z.preprocess` (HTML
   forms can't carry real arrays) — see `validators/courseSchema.js`.
+- **Optional file uploads** (a course thumbnail on update, a user's avatar) follow the
+  same `uploadSingle(fieldName)` → `validate(zodSchema)` → controller order as required
+  ones, just without `requireFile` — `req.file` is simply `undefined` when the client
+  didn't attach one, and the service branches on that (`if (avatarFile) { ... }`) rather
+  than treating it as an error.
+
+## Profile Model
+
+- `GET /users/me` / `PUT /users/me` (both `isAuthenticated`, no ownership middleware
+  needed — the target is always `req.user.id`, never a route param) are the User
+  domain's read/update surface beyond auth (signup/signin/password). `PUT` accepts
+  `firstName`/`lastName` plus the previously-unused `profile` sub-document
+  (`about`/`phoneNumber`/`gender`/`dob`) and an optional `avatar` file, all independently
+  optional — only fields actually sent get written (`updateProfileService` builds a
+  sparse `$set` using dot-paths like `'profile.about'`, so omitted fields are left
+  untouched rather than overwritten with `undefined`).
+- **Both endpoints explicitly `.select('-password')`** via dedicated repository methods
+  (`getProfileById`, `updateProfile`) rather than reusing the generic
+  `crudRepository`'s `getById`/`update` (which return the full document, hash included —
+  already true of some older User flows like `resetPasswordService`, a known
+  pre-existing gap this domain deliberately doesn't propagate into new code).
+- Avatar upload reuses the exact Course-thumbnail pattern: `uploadImageToCloudinary` /
+  best-effort `safeDeleteCloudinaryImage` of the old one (own copy in `userService.js`,
+  not shared — same reasoning as `subSectionService.js`'s copy, see Invariants). A
+  user's first avatar is the auto-generated `ui-avatars.com` placeholder
+  (`userSchema.js`'s `pre('save')` hook) and has no `avatarPublicId`, so it's simply
+  never sent to Cloudinary for cleanup — only real uploads are.
+- Frontend syncs the header/dropdown avatar and name immediately after a successful
+  profile save by merging the response into `auth.user` and `localStorage['user']`
+  directly (`ProfileContainer`), rather than waiting on a full re-login — the JWT itself
+  is never re-issued for a profile edit, only the locally-cached display fields change.
 
 ## Payment Model
 

@@ -41,3 +41,14 @@ export const resetPasswordSchema = z.object({
     newPassword: z.string().min(6).max(20),
 });
 
+// multipart/form-data - avatar arrives as req.file, not a body field. All
+// fields optional: only what's actually edited gets sent from the client.
+export const updateProfileSchema = z.object({
+    firstName: z.string().min(2).max(20).optional(),
+    lastName: z.string().min(2).max(20).optional(),
+    about: z.string().max(500).optional(),
+    phoneNumber: z.string().max(20).optional(),
+    gender: z.enum(['male', 'female', 'other']).optional(),
+    dob: z.string().optional(),
+});
+
