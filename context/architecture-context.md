@@ -30,9 +30,10 @@ Client (React) --axios--> /api/v1/* (Express) --> service layer --> repository l
 - Request layering is strict and consistently followed for User, Tag, Course, Section,
   SubSection, and Payment: `route → validate(zodSchema) middleware → controller → service →
   repository → Mongoose model`. Controllers never call Mongoose directly.
-- Course, Section, SubSection, and Payment all have full CRUD/flow layers now.
-- Review/CourseProgress models exist but have no service/repository/controller/route
-  layer yet — only the Mongoose schema exists for these today.
+- Course, Section, SubSection, Payment, and CourseProgress all have full CRUD/flow
+  layers now.
+- Review model exists but has no service/repository/controller/route layer yet — only
+  the Mongoose schema exists for it today.
 
 ## Storage Model
 
@@ -157,6 +158,41 @@ Client (React) --axios--> /api/v1/* (Express) --> service layer --> repository l
   list (`useCourses`), the same id→map pattern used for tag names elsewhere — there is
   still no backend `.populate()`.
 
+## Progress Model
+
+- `CourseProgress` tracks one document per `(user, course)` pair (unique index),
+  holding `completedSubSections: [ObjectId]`. There is no "percent" field stored — it's
+  always computed on read (`courseProgressService.buildProgressSummary`): total lesson
+  count comes from summing `section.subSections.length` across the course's sections
+  (no separate SubSection count query), completed count from
+  `completedSubSections.length`.
+- `GET /course-progress?course=<id>` and `POST /course-progress/complete
+  {course, subSection}` both use the same eligibility rule as SubSection reads (enrolled
+  student, owning instructor, or `ADMIN` — see `isEnrolledOrOwnerOrAdmin`), checked
+  inline in the service rather than a route middleware, since this is per-user data (not
+  a shared resource with one reusable ownership check).
+- Marking complete is an upsert (`findOneAndUpdate` with `upsert: true`) using
+  `$addToSet`, matching the idempotency pattern used for enrollment — replaying the same
+  mark-complete call is always safe.
+- `markLessonCompleteService` independently re-verifies the given `subSection` actually
+  belongs to the given `course` (walks `subSection → section → section.course`) — the
+  two ids come from the client in the same request body, so a mismatched pair must be
+  rejected rather than trusted.
+- **Course Player** (`pages/course/CoursePlayerContainer.jsx`, routes
+  `/courses/:id/learn` and `/courses/:id/learn/:subSectionId`): the actual place lessons
+  play and progress gets tracked, replacing the old inline-video-in-accordion pattern on
+  the course detail page. Fetches every section's lessons in parallel
+  (`useCourseLessons`, one `useQueries` entry per section against the same
+  `GET /subsections?section=<id>` endpoint and query key `LessonList` uses, so the cache
+  is shared) and flattens them into one ordered list for the sidebar. No `subSectionId`
+  in the URL → redirects (`navigate(..., {replace:true})`) to the first lesson once
+  loaded, so `/learn` always resolves to a real lesson. The `<video>` element's `onEnded`
+  auto-calls mark-complete; a manual "Mark as complete" button covers the case where a
+  student doesn't watch to the end. Route is behind `ProtectedRoute` (any logged-in
+  user) — the actual enrollment check happens inside `CoursePlayer` itself (`canView`,
+  same `isOwner || isEnrolled` logic as `CourseDetail`), showing a locked screen rather
+  than attempting playback for a non-enrolled visitor.
+
 ## Invariants
 
 Only things whose violation is a bug — not preferences:
@@ -166,10 +202,7 @@ Only things whose violation is a bug — not preferences:
 - Passwords are never logged, returned in an API response, or embedded in a JWT payload.
 - `req.user` is only trustworthy after `isAuthenticated` has run.
 - OTP verification state lives only in Redis; it must never be persisted to MongoDB.
-- All Mongoose FK fields referencing `Course` are named `course` (not `courseID`) —
-  `courseProgressSchema.js` currently violates this (uses `courseID`, and its unique
-  index incorrectly references a `course` field that doesn't exist on that schema) and
-  needs fixing; see `progress-tracker.md`.
+- All Mongoose FK fields referencing `Course` are named `course` (not `courseID`).
 - Only `ADMIN`/`INSTRUCTOR` may write to Tag, Course, or Section (role gate on every
   write route); reads are public for all three. Course/Section writes additionally
   require course ownership (see Auth Model above) — `ADMIN` bypasses ownership too.
@@ -179,8 +212,8 @@ Only things whose violation is a bug — not preferences:
   itself), not just browsable metadata, so it can't follow the same public-read pattern
   as Tag/Course/Section titles. Originally shipped as a fully public route by copying
   that pattern without carving out the exception — found live (any logged-out visitor
-  could fetch and download lesson videos) and fixed by requiring login. This is
-  was originally an **interim** gate (any authenticated user could watch any lesson,
+  could fetch and download lesson videos) and fixed by requiring login. This was
+  originally an **interim** gate (any authenticated user could watch any lesson,
   regardless of enrollment) until Payment/Enrollment existed to check against. Now that
   it does (see Payment Model below), the gate is real: `isEnrolledOrOwnerOrAdmin`
   (`authMiddleware.js`) resolves the lesson's course (via `req.query.section` for the
@@ -190,10 +223,13 @@ Only things whose violation is a bug — not preferences:
   non-enrolled `STUDENT` now gets 403, not 200. Live-verified against the real dashboard
   DB: a non-enrolled student → 403 on both routes; the same student after being enrolled,
   the course's instructor, and an `ADMIN` → 200 on all three. The frontend mirrors this:
-  `CourseDetail.jsx` only renders `LessonList` (which hits the gated endpoint) when
-  `isOwner || isEnrolled`; otherwise the accordion shows a "Enroll to unlock this
-  section's lessons" message instead of silently degrading to an empty "coming soon"
-  state.
+  `CourseDetail.jsx`'s syllabus accordion only renders `LessonList` (which hits the
+  gated endpoint) when `isOwner || isEnrolled`; otherwise it shows an "Enroll to unlock
+  this section's lessons" message instead of silently degrading to an empty "coming
+  soon" state. `LessonList` itself no longer plays video inline — each row is a `Link`
+  into the dedicated Course Player route (`/courses/:id/learn/:subSectionId`, see
+  Progress Model below); actual playback and progress tracking live there, not on the
+  marketing/detail page.
 - A Course must have a `thumbnail` (Mongoose `required` + route-level `requireFile` on
   create) and at least one existing Tag id (Zod shape-check + a service-layer existence
   check via `tagRepository.findByIds` — a well-formed but nonexistent tag id is rejected).
@@ -231,6 +267,10 @@ Only things whose violation is a bug — not preferences:
   still sends `x-access-token` — not yet migrated.
 - **FK fields referencing Course are named `course`, not `courseID`.**
   Why: matches the majority of existing models (payment, review, section).
+  `courseProgressSchema.js` used to be the one exception (`courseID`, plus a unique index
+  that referenced a `course` field that didn't exist on the schema) — fixed when the
+  CourseProgress domain was built out; the collection was empty at the time, so no
+  migration was needed.
 - **`schema/` will be renamed to `models/` (not yet done).**
   Why: `schema/*.js` files are Mongoose models, not Zod schemas — the name collides with
   `validators/userSchema.js`, which really is one.

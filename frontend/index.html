@@ -5,6 +5,17 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LMS - Learn from Real Practitioners</title>
+    <script>
+      // Applied before paint to avoid a flash of the wrong theme - the
+      // ThemeContext provider re-derives the same value on mount and keeps
+      // it in sync, this just avoids a visible flicker on first load.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var theme =
+          stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        if (theme === 'dark') document.documentElement.classList.add('dark');
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

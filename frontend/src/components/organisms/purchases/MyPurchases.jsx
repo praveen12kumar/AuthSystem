@@ -88,7 +88,7 @@ const MyPurchases = ({ purchases, isLoading }) => {
                   </div>
                   {course && (
                     <Button asChild size="sm">
-                      <Link to={`/courses/${course._id}`}>
+                      <Link to={`/courses/${course._id}/learn`}>
                         <PlayCircle /> Continue Learning
                       </Link>
                     </Button>

@@ -43,6 +43,25 @@ add new brand-related tokens here instead.
   Tailwind utility classes (`bg-primary`, `text-muted-foreground`) rather than raw CSS
   variables.
 
+## Theme (Light/Dark)
+
+- User-selectable, not just system-driven: `ThemeContext`/`ThemeContextProvider`
+  (`frontend/src/context/ThemeContext.jsx`) holds `theme` (`'light' | 'dark'`), toggles
+  the `.dark` class on `document.documentElement`, and persists the choice to
+  `localStorage['theme']`. Initial value: stored preference if present, else
+  `prefers-color-scheme`. `useTheme()` (`hooks/context/useTheme.js` — correctly spelled,
+  see `code-standards.md`) exposes `{ theme, setTheme, toggleTheme }`.
+- A blocking inline script in `index.html`'s `<head>` applies the same class before
+  React mounts, to avoid a flash of the wrong theme on first paint — it re-derives the
+  identical value the provider computes on mount, so the two never disagree.
+- The toggle lives in `Header.jsx` (sun/moon icon button, always visible whether logged
+  in or not). Both light and dark token sets already existed in `index.css` (standard
+  shadcn scaffolding) before this — building the toggle didn't require adding new
+  tokens, just wiring the existing `.dark` class to something.
+- Components should never branch on `theme` directly to pick a color — use the semantic
+  Tailwind tokens (`bg-background`, `text-foreground`, etc.) as already established, and
+  they'll resolve correctly under either mode automatically.
+
 ## Typography
 
 The "Outfit" Google Font is imported at the top of `index.css` **and is wired in** via

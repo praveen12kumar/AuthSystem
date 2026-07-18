@@ -2,12 +2,13 @@
 
 ## Current Phase
 
-Auth, Tag, Course, Section, SubSection, and Payment/Enrollment are all functionally
-complete end-to-end, backend **and** frontend. Instructors upload a real lesson video per
-section and can rename/replace-video/delete it; students buy a course via Razorpay
-Checkout and only then can actually watch its lessons (enrollment is now a real,
-enforced gate, not just "logged in"); a "My Purchases" page lists what a student has
-bought. Review/CourseProgress are still open (see Next Up).
+Auth, Tag, Course, Section, SubSection, Payment/Enrollment, and CourseProgress are all
+functionally complete end-to-end, backend **and** frontend. Instructors upload a real
+lesson video per section; students buy a course via Razorpay Checkout, then watch its
+lessons in a dedicated Course Player page (progress tracked per-lesson, not just
+"logged in and enrolled"). A "My Purchases" page lists what a student has bought, and
+the whole app now has a real, user-toggleable light/dark theme. Review is still open
+(see Next Up).
 
 ## Completed
 
@@ -110,6 +111,26 @@ bought. Review/CourseProgress are still open (see Next Up).
   link into the course. Reachable from the account dropdown in `Header.jsx`, route
   `/my-purchases` behind a role-less `ProtectedRoute` (any logged-in user). Live-verified
   with Playwright against the real dev DB and a genuine purchase record.
+- **AlgoCamp-inspired redesign**: user shared reference screenshots (a competitor's
+  course detail and course-player pages) and asked to match them. Landed as four
+  pieces: (1) a real, user-toggleable light/dark theme (`ThemeContext`, toggle in
+  `Header.jsx`, persisted to `localStorage`, no flash-of-wrong-theme thanks to a
+  blocking inline script in `index.html` — dark tokens already existed in `index.css`,
+  just needed wiring up; see `ui-context.md` Theme section); (2) `CourseDetail.jsx`
+  restyled to the reference's layout — breadcrumb, plain title/description, thumbnail
+  moved into the sidebar price card, syllabus as a flat outline instead of a full-width
+  hero banner; (3) the `CourseProgress` domain built out for real (was a schema-only
+  stub) — see `architecture-context.md` Progress Model; (4) a new dedicated Course
+  Player page (`/courses/:id/learn/:subSectionId`) replacing inline video-in-accordion
+  playback, with a split-pane layout (video + sidebar syllabus, current-lesson
+  highlight, live progress bar, mark-complete on video end or by hand). Explicitly
+  **skipped** per the user's own scoping decision: the reference's coupon/offer-code box
+  (no `Coupon` model exists) and its header search bar/notification bell (not real
+  functionality, would've been decorative). Live-verified end-to-end with Playwright:
+  theme toggle + persistence, both themes' CourseDetail rendering, Continue Learning →
+  player navigation, mark-complete updating the progress bar and checkmark, lesson
+  switching, and instructor/admin access without enrollment — all against the real dev
+  DB, with all test progress records cleaned up afterward.
 
 ## In Progress
 

@@ -1,5 +1,6 @@
 import express from 'express';
 
+import courseProgressRouter from './courseProgress.js';
 import courseRouter from './courses.js';
 import paymentRouter from './payments.js';
 import sectionRouter from './sections.js';
@@ -15,5 +16,6 @@ router.use('/courses', courseRouter);
 router.use('/sections', sectionRouter);
 router.use('/subsections', subSectionRouter);
 router.use('/payments', paymentRouter);
+router.use('/course-progress', courseProgressRouter);
 
 export default router;

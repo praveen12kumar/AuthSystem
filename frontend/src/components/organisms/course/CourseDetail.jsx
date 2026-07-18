@@ -1,5 +1,13 @@
 import { motion as Motion } from 'framer-motion';
-import { CheckCircle2, Layers, Lock, Pencil, ShoppingCart, Star } from 'lucide-react';
+import {
+  ChevronRight,
+  Layers,
+  Lock,
+  Pencil,
+  PlayCircle,
+  ShoppingCart,
+  Star
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import LessonList from '@/components/organisms/course/LessonList';
@@ -29,9 +37,9 @@ const CourseDetail = ({
   if (isLoading) {
     return (
       <div className="mx-auto max-w-7xl space-y-6 px-4 py-10 sm:px-6">
-        <Skeleton className="h-64 w-full rounded-2xl" />
-        <Skeleton className="h-8 w-2/3" />
         <Skeleton className="h-4 w-1/3" />
+        <Skeleton className="h-10 w-2/3" />
+        <Skeleton className="h-24 w-full" />
       </div>
     );
   }
@@ -55,24 +63,28 @@ const CourseDetail = ({
     ? course.price - (course.price * course.discount) / 100
     : course.price;
   const canViewLessons = isOwner || isEnrolled;
+  const totalLessons = sections.reduce(
+    (sum, section) => sum + (section.subSections?.length || 0),
+    0
+  );
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-      <Motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="relative mb-8 overflow-hidden rounded-2xl"
-      >
-        <div className="aspect-[21/9] w-full bg-muted sm:aspect-[3/1]">
-          <img
-            src={course.thumbnail}
-            alt={course.title}
-            className="size-full object-cover"
-          />
-        </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 flex flex-col gap-3 p-6 sm:p-8">
+      <nav className="mb-6 flex items-center gap-1.5 text-sm text-muted-foreground">
+        <Link to="/courses" className="hover:text-foreground">
+          Courses
+        </Link>
+        <ChevronRight className="size-3.5" />
+        <span className="line-clamp-1 text-foreground">{course.title}</span>
+      </nav>
+
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+        <Motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="space-y-6 lg:col-span-2"
+        >
           <div className="flex flex-wrap gap-1.5">
             {course.tags?.map((tagId) => (
               <Badge key={tagId} variant="secondary">
@@ -80,40 +92,32 @@ const CourseDetail = ({
               </Badge>
             ))}
           </div>
-          <h1 className="max-w-2xl text-2xl font-bold text-white sm:text-3xl md:text-4xl">
+
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
             {course.title}
           </h1>
-          <div className="flex items-center gap-1.5 text-white/90">
+
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <Star className="size-4 fill-chart-4 text-chart-4" />
-            <span className="font-medium">
+            <span className="font-medium text-foreground">
               {course.averageRating?.toFixed(1) || 'New'}
             </span>
-            {course.numberOfRatings > 0 && (
-              <span className="text-sm text-white/70">
-                ({course.numberOfRatings} ratings)
-              </span>
-            )}
-            <span className="text-sm text-white/70">
-              · {course.studentsEnrolled?.length || 0} students
-            </span>
+            {course.numberOfRatings > 0 && <span>({course.numberOfRatings} ratings)</span>}
+            <span>· {course.studentsEnrolled?.length || 0} students</span>
           </div>
-        </div>
-      </Motion.div>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        <div className="space-y-8 lg:col-span-2">
-          <section>
-            <h2 className="mb-3 text-xl font-semibold">About this course</h2>
-            <p className="whitespace-pre-line text-muted-foreground">
-              {course.description}
-            </p>
-          </section>
+          <p className="whitespace-pre-line text-muted-foreground">
+            {course.description}
+          </p>
 
           <section>
             <div className="mb-3 flex items-center gap-2">
               <Layers className="size-5 text-primary" />
-              <h2 className="text-xl font-semibold">Curriculum</h2>
-              <Badge variant="outline">{sections.length} sections</Badge>
+              <h2 className="text-xl font-semibold">Syllabus</h2>
+              <Badge variant="outline">
+                {sections.length} section{sections.length === 1 ? '' : 's'} ·{' '}
+                {totalLessons} lesson{totalLessons === 1 ? '' : 's'}
+              </Badge>
             </div>
 
             {sectionsLoading ? (
@@ -135,11 +139,15 @@ const CourseDetail = ({
                           {String(index + 1).padStart(2, '0')}
                         </span>
                         {section.title}
+                        <span className="text-xs font-normal text-muted-foreground">
+                          {section.subSections?.length || 0} lesson
+                          {section.subSections?.length === 1 ? '' : 's'}
+                        </span>
                       </span>
                     </AccordionTrigger>
                     <AccordionContent>
                       {canViewLessons ? (
-                        <LessonList sectionId={section._id} />
+                        <LessonList sectionId={section._id} courseId={course._id} />
                       ) : (
                         <p className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Lock className="size-4" />
@@ -152,11 +160,18 @@ const CourseDetail = ({
               </Accordion>
             )}
           </section>
-        </div>
+        </Motion.div>
 
         <div className="lg:col-span-1">
-          <Card className="sticky top-24">
-            <CardContent className="flex flex-col gap-4">
+          <Card className="sticky top-24 gap-4 overflow-hidden py-0">
+            <div className="aspect-video w-full bg-muted">
+              <img
+                src={course.thumbnail}
+                alt={course.title}
+                className="size-full object-cover"
+              />
+            </div>
+            <CardContent className="flex flex-col gap-4 p-4">
               <div className="flex items-baseline gap-2">
                 <span className="text-3xl font-bold">
                   ${finalPrice.toFixed(2)}
@@ -168,8 +183,10 @@ const CourseDetail = ({
                 )}
               </div>
               {isEnrolled ? (
-                <Button size="lg" disabled className="pointer-events-none">
-                  <CheckCircle2 /> Enrolled
+                <Button asChild size="lg">
+                  <Link to={`/courses/${course._id}/learn`}>
+                    <PlayCircle /> Continue Learning
+                  </Link>
                 </Button>
               ) : (
                 <Button size="lg" onClick={onEnroll} disabled={isEnrolling}>
@@ -184,9 +201,14 @@ const CourseDetail = ({
                   </Link>
                 </Button>
               )}
-              <p className="text-center text-xs text-muted-foreground">
-                Full lifetime access · Learn at your own pace
-              </p>
+              <div className="space-y-1 border-t pt-3 text-sm text-muted-foreground">
+                <p className="font-medium text-foreground">This course includes:</p>
+                <p>
+                  {totalLessons} lesson{totalLessons === 1 ? '' : 's'} across{' '}
+                  {sections.length} section{sections.length === 1 ? '' : 's'}
+                </p>
+                <p>Full lifetime access · Learn at your own pace</p>
+              </div>
             </CardContent>
           </Card>
         </div>

@@ -156,7 +156,10 @@
 - **Naming**: components are PascalCase files/exports. Hooks are camelCase `use*.js`.
   `hooks/conext/` and `useChnagePassword.js` are known misspellings already referenced
   elsewhere in the codebase — don't propagate the typo into new files, but don't rename
-  the existing ones without a coordinated pass (see `progress-tracker.md`).
+  the existing ones without a coordinated pass (see `progress-tracker.md`). New context
+  hooks go in the correctly-spelled `hooks/context/` (e.g. `useTheme.js`) — this means
+  there are now two folders (`conext` for `useAuth`, `context` for anything new) until
+  the coordinated rename happens; don't merge them opportunistically.
 - **Routing**: all routes are declared flat in `utils/Routes.jsx`, no nested router
   layout routes — shared layout (`Auth`) is applied by manually wrapping the page
   component in JSX, not via a react-router layout route. Follow this pattern for new

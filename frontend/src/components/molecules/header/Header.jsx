@@ -4,7 +4,9 @@ import {
   GraduationCap,
   LayoutDashboard,
   LogOut,
+  Moon,
   ShoppingBag,
+  Sun,
   User
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -21,9 +23,11 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/conext/useAuth';
+import { useTheme } from '@/hooks/context/useTheme';
 
 const Header = () => {
   const { auth, setAuth } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const { user } = auth;
   const canTeach = user?.role === 'INSTRUCTOR' || user?.role === 'ADMIN';
@@ -69,6 +73,14 @@ const Header = () => {
         </nav>
 
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            onClick={toggleTheme}
+          >
+            {theme === 'dark' ? <Sun /> : <Moon />}
+          </Button>
           {auth.isLoading ? null : user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
