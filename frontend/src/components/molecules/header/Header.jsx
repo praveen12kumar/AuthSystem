@@ -9,6 +9,7 @@ import {
   Sun,
   Tags,
   User,
+  UsersRound,
   Wallet
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -33,6 +34,7 @@ const Header = () => {
   const navigate = useNavigate();
   const { user } = auth;
   const canTeach = user?.role === 'INSTRUCTOR' || user?.role === 'ADMIN';
+  const isAdmin = user?.role === 'ADMIN';
 
   const handleSignOut = () => {
     localStorage.removeItem('user');
@@ -144,6 +146,13 @@ const Header = () => {
                   <DropdownMenuItem asChild>
                     <Link to="/instructor/tags">
                       <Tags /> Manage Tags
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                {isAdmin && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/admin/users">
+                      <UsersRound /> Manage Users
                     </Link>
                   </DropdownMenuItem>
                 )}

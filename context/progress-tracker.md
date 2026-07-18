@@ -12,8 +12,10 @@ has bought, users can view/edit their own profile and change their password from
 consolidated page, instructors can see what they've earned (after a platform
 commission) per course and overall, and the whole app has a real, user-toggleable
 light/dark theme. Tags can now be created/edited/deleted from a real UI
-(`/instructor/tags`) instead of Postman. Nothing from the original scope is unbuilt
-anymore — remaining work is entirely refinement (see Next Up).
+(`/instructor/tags`) instead of Postman, and an admin can view every user and change
+roles from `/admin/users` — the first genuinely `ADMIN`-only (not `INSTRUCTOR`-shared)
+page in the app. Nothing from the original scope is unbuilt anymore — remaining work is
+entirely refinement (see Next Up).
 
 ## Completed
 
@@ -194,6 +196,19 @@ anymore — remaining work is entirely refinement (see Next Up).
   Live-verified: create → edit → delete round-trip, the in-use warning rendering
   correctly against the real "JavaScript" tag (2 courses), and a `STUDENT` account
   correctly redirected away from the route.
+- **User management** (`/admin/users`, `ADMIN`-only) — the first admin capability that
+  isn't shared with `INSTRUCTOR`. `GET /users` lists everyone (password excluded via a
+  dedicated repository method, same discipline as the Profile domain); `PUT
+  /users/:id/role` changes a role. One guard: a caller can never change their own role —
+  see `architecture-context.md` Auth Model for why that alone is sufficient to prevent
+  the system ever being left with zero admins (a separate "last admin" count check was
+  written, found to be unreachable, and deliberately removed rather than kept as dead
+  code). UI: each user's role is a `Select` + explicit "Save" + confirm-dialog step
+  (matching the app's existing delete-confirmation pattern) rather than committing
+  immediately on selection; the logged-in admin's own row shows a locked badge instead
+  of an editable selector. Live-verified: promoted the real test student to
+  `INSTRUCTOR` and back, and confirmed a `STUDENT` account is redirected away from the
+  route entirely.
 
 ## In Progress
 

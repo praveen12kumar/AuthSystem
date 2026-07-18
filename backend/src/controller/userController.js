@@ -3,11 +3,13 @@ import { StatusCodes } from 'http-status-codes';
 import {
   changePasswordService,
   forgotPasswordService,
+  getAllUsersService,
   getMyProfileService,
   resetPasswordService,
   signInService,
   signUpService,
   updateProfileService,
+  updateUserRoleService,
   verifyOtpService,
   verifyUserService
 } from '../services/userService.js';
@@ -155,6 +157,44 @@ export const getMyProfile = async (req, res) => {
     return res
       .status(StatusCodes.OK)
       .json(successResponse(response, 'Profile fetched successfully'));
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json(customErrorResponse(error));
+    }
+    return res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json(internalErrorResponse(error));
+  }
+};
+
+// list every user (admin only)
+export const getAllUsers = async (req, res) => {
+  try {
+    const response = await getAllUsersService();
+    return res
+      .status(StatusCodes.OK)
+      .json(successResponse(response, 'Users fetched successfully'));
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json(customErrorResponse(error));
+    }
+    return res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json(internalErrorResponse(error));
+  }
+};
+
+// change a user's role (admin only)
+export const updateUserRole = async (req, res) => {
+  try {
+    const response = await updateUserRoleService(
+      req.params.id,
+      req.body.role,
+      req.user.id
+    );
+    return res
+      .status(StatusCodes.OK)
+      .json(successResponse(response, 'Role updated successfully'));
   } catch (error) {
     if (error.statusCode) {
       return res.status(error.statusCode).json(customErrorResponse(error));

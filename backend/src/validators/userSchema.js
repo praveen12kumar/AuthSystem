@@ -52,3 +52,7 @@ export const updateProfileSchema = z.object({
     dob: z.string().optional(),
 });
 
+export const updateUserRoleSchema = z.object({
+    role: z.enum(['STUDENT', 'INSTRUCTOR', 'ADMIN']),
+});
+

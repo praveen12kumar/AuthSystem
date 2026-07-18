@@ -92,6 +92,18 @@ Client (React) --axios--> /api/v1/* (Express) --> service layer --> repository l
     by looking up the SubSection via `req.params.id` first (update/delete) — same
     dual-resolution shape as `isCourseOwnerOrAdmin`, one hop deeper (SubSection →
     Section → Course).
+- **User management (`ADMIN`-only, not `authorize('ADMIN', 'INSTRUCTOR')` like most other
+  write routes)**: `GET /users` lists every user (`userRepository.getAllExcludingPassword`
+  — dedicated method, not the generic `crudRepository.getAll`, same password-exclusion
+  discipline as the Profile domain). `PUT /users/:id/role` changes a user's role, with a
+  single guard: **a caller can never change their own role**
+  (`updateUserRoleService`). This one check is also what keeps the system from ever
+  being left with zero admins through this endpoint — since the route itself requires
+  the caller to already be `ADMIN`, and the caller can never target themselves, demoting
+  "the last admin" would require the caller to be a *second*, distinct admin, meaning
+  there were always at least two. No separate "last admin" count check exists — it was
+  written once, found to be unreachable given the above, and deliberately removed rather
+  than left in as dead code.
 
 ## File Upload Model
 

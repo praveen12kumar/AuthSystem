@@ -337,6 +337,62 @@ export const updateProfileService = async (userId, data, avatarFile) => {
   }
 };
 
+// list every user (admin only) - excludes password via the same dedicated
+// repository pattern as getMyProfileService, never the generic crudRepository.
+
+export const getAllUsersService = async () => {
+  try {
+    return await userRepository.getAllExcludingPassword();
+  } catch (error) {
+    console.log('User Service error', error);
+    throw error;
+  }
+};
+
+// change a user's role (admin only). The self-change block below is also
+// what keeps this endpoint from ever being able to strand the system with
+// zero admins: since the route itself requires the caller to already be
+// ADMIN, and a caller can never target themselves, demoting "the last admin"
+// would require the caller to be a second, distinct admin - at which point
+// there were always at least two, so the system is never actually left
+// admin-less by this endpoint alone.
+
+export const updateUserRoleService = async (targetUserId, role, requestingUserId) => {
+  try {
+    if (targetUserId === requestingUserId) {
+      throw new ClientError({
+        message: 'Cannot change your own role',
+        statusCode: StatusCodes.BAD_REQUEST,
+        explanation: ['Ask another admin to change your role']
+      });
+    }
+
+    const targetUser = await userRepository.getProfileById(targetUserId);
+    if (!targetUser) {
+      throw new ClientError({
+        message: 'User not found',
+        statusCode: StatusCodes.NOT_FOUND,
+        explanation: ['No user exists with this id']
+      });
+    }
+
+    return await userRepository.updateRole(targetUserId, role);
+  } catch (error) {
+    console.log('User Service error', error);
+    if (error.name === 'ValidationError') {
+      throw new ValidationError({ error: error.errors }, error.message);
+    }
+    if (error.name === 'CastError') {
+      throw new ClientError({
+        message: 'Invalid id',
+        statusCode: StatusCodes.BAD_REQUEST,
+        explanation: ['User id is not a valid identifier']
+      });
+    }
+    throw error;
+  }
+};
+
 // reset password service
 
 export const resetPasswordService = async (data, userId) => {

@@ -1,9 +1,9 @@
 import express from 'express';
 
-import { changePassword,forgotPassword, getMyProfile, resetPassword, signin, signup, updateProfile, verifyEmail, verifyOtp } from '../../controller/userController.js';
-import { isAuthenticated } from '../../middlewares/authMiddleware.js';
+import { changePassword,forgotPassword, getAllUsers, getMyProfile, resetPassword, signin, signup, updateProfile, updateUserRole, verifyEmail, verifyOtp } from '../../controller/userController.js';
+import { authorize, isAuthenticated } from '../../middlewares/authMiddleware.js';
 import { uploadSingle } from '../../middlewares/uploadMiddleware.js';
-import { changePasswordSchema, forgotPasswordSchema, resetPasswordSchema, updateProfileSchema, userSignInSchema,userSignUpSchema, verifyOtpSchema, verifyUserSchema } from '../../validators/userSchema.js';
+import { changePasswordSchema, forgotPasswordSchema, resetPasswordSchema, updateProfileSchema, updateUserRoleSchema, userSignInSchema,userSignUpSchema, verifyOtpSchema, verifyUserSchema } from '../../validators/userSchema.js';
 import { validate } from '../../validators/zodValidators.js';
 
 
@@ -31,6 +31,16 @@ router.put(
   uploadSingle('avatar'),
   validate(updateProfileSchema),
   updateProfile
+);
+
+router.get('/', isAuthenticated, authorize('ADMIN'), getAllUsers);
+
+router.put(
+  '/:id/role',
+  isAuthenticated,
+  authorize('ADMIN'),
+  validate(updateUserRoleSchema),
+  updateUserRole
 );
 
 

@@ -163,3 +163,27 @@ export const updateProfileRequest = async ({
         throw getErrorMessage(error);
     }
 };
+
+// list every user (admin only)
+
+export const getAllUsersRequest = async () => {
+    try {
+        const response = await axios.get('/api/v1/users');
+        return response.data;
+    } catch (error) {
+        console.log('error fetching users', error);
+        throw getErrorMessage(error);
+    }
+};
+
+// change a user's role (admin only)
+
+export const updateUserRoleRequest = async ({ id, role }) => {
+    try {
+        const response = await axios.put(`/api/v1/users/${id}/role`, { role });
+        return response.data;
+    } catch (error) {
+        console.log('error updating user role', error);
+        throw getErrorMessage(error);
+    }
+};
