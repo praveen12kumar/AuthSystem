@@ -52,6 +52,43 @@ export const trackOtpRequests = async(email)=>{
 
 
 
+// Protects an account from password-guessing: after MAX_SIGNIN_ATTEMPTS
+// consecutive wrong passwords, the account is locked out for
+// SIGNIN_LOCK_SECONDS regardless of whether a later attempt is correct.
+// Keyed by email, same as the OTP rate-limiting above - doesn't stop
+// low-volume guessing spread across many different accounts, but that's
+// the same scope this file's OTP protections already accept.
+const MAX_SIGNIN_ATTEMPTS = 5;
+const SIGNIN_ATTEMPT_WINDOW_SECONDS = 15 * 60;
+const SIGNIN_LOCK_SECONDS = 15 * 60;
+
+export const checkSigninRestrictions = async(email)=>{
+    if(await redis.get(`signin_lock:${email}`)){
+        throw new ClientError({
+            message: "Too many failed attempts, please wait 15 minutes before trying again.",
+            statusCode: StatusCodes.TOO_MANY_REQUESTS,
+            explanation: ["Account temporarily locked due to repeated failed signin attempts"],
+        })
+    }
+};
+
+export const trackFailedSignin = async(email)=>{
+    const attemptsKey = `signin_attempts:${email}`;
+    const attempts = parseInt((await redis.get(attemptsKey)) || 0) + 1;
+
+    if(attempts >= MAX_SIGNIN_ATTEMPTS){
+        await redis.set(`signin_lock:${email}`, "locked", { ex: SIGNIN_LOCK_SECONDS });
+        await redis.del(attemptsKey);
+        return;
+    }
+
+    await redis.set(attemptsKey, attempts, { ex: SIGNIN_ATTEMPT_WINDOW_SECONDS });
+};
+
+export const clearSigninAttempts = async(email)=>{
+    await redis.del(`signin_attempts:${email}`, `signin_lock:${email}`);
+};
+
 export const sendOtp = async(name, email, template)=>{
     //console.log("Sending otp");
     const otp = crypto.randomInt(100000,999999).toString();

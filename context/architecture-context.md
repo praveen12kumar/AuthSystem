@@ -80,6 +80,16 @@ Client (React) --axios--> /api/v1/* (Express) --> service layer --> repository l
 - OTP (signup verification, forgot-password) is entirely Redis-backed, no DB writes:
   5-min OTP validity, 1-min resend cooldown, spam lock after 2 requests within the
   window, attempt lock after 3 failed verifications.
+- **Signin brute-force protection**, same Redis-backed shape as the OTP limits above but
+  a separate key namespace (`checkSigninRestrictions`/`trackFailedSignin`/
+  `clearSigninAttempts` in `authHelper.js`): 5 consecutive wrong passwords for one email
+  locks that account out of signin entirely (`signin_lock:<email>`, 15 min), regardless
+  of whether a later attempt has the correct password — the lock is checked *before* the
+  password comparison even runs. A successful signin clears both the lock and the
+  attempt counter. Keyed by email, same as OTP — doesn't stop low-volume guessing spread
+  across many different accounts, a scope limitation already accepted for the OTP
+  protections this mirrors. This closed a real gap: every OTP-driven flow already had
+  rate-limiting, but plain password signin had none at all until this was added.
 - Frontend stores `{ user, token }` in `localStorage` (not cookies) and mirrors the
   token onto the shared Axios instance's default headers via a `useEffect` in
   `AuthContext` (not an Axios interceptor).

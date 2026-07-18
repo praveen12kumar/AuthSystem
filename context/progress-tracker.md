@@ -16,9 +16,11 @@ light/dark theme. Tags can now be created/edited/deleted from a real UI
 roles from `/admin/users` — the first genuinely `ADMIN`-only (not `INSTRUCTOR`-shared)
 page in the app. Nothing from the original scope is unbuilt anymore — remaining work is
 entirely refinement (see Next Up). The backend also has automated tests now (Vitest +
-supertest + in-memory MongoDB, covering Auth and Payment — 18 tests) — see
+supertest + in-memory MongoDB, covering Auth and Payment — 20 tests) — see
 `ai-workflow-rules.md` Verification for the pattern; everything else is still
-manual-verification-only.
+manual-verification-only. Signin now has the same brute-force protection every
+OTP-driven flow already had (5 failed attempts locks the account for 15 minutes) — a
+real, previously-unflagged gap the user asked to close.
 Enrolling now goes through a real checkout/order-review page
 (`/courses/:id/checkout`, course summary + account info + bill summary) before opening
 Razorpay, instead of jumping straight from "Enroll Now" into the payment widget.
@@ -269,6 +271,19 @@ Razorpay, instead of jumping straight from "Enroll Now" into the payment widget.
   against the live account on every test run) — signature verification is tested for
   real, since it's pure HMAC crypto against our own secret and never touches Razorpay
   at all. See `ai-workflow-rules.md` Verification.
+- **Signin brute-force protection** — every OTP-driven flow (signup, forgot-password)
+  already had real Redis-backed rate-limiting; plain password signin had none at all
+  until now, a real gap surfaced during a "what else could we improve" pass rather than
+  something already tracked. `checkSigninRestrictions`/`trackFailedSignin`/
+  `clearSigninAttempts` (`authHelper.js`) lock an account out of signin for 15 minutes
+  after 5 consecutive wrong passwords, checked *before* the password comparison even
+  runs — so the 6th call is a flat 429 even if that attempt's password happens to be
+  correct. A successful signin resets the counter. 2 new tests (20 total): full lockout
+  after 5 failures plus a correct-password 6th call still returning 429, and the
+  counter-reset behavior after a successful signin. Live-verified against the real
+  running backend and the real dev Redis with 6 real HTTP calls (not just the
+  automated suite) — including against a genuine user account, whose test-induced
+  lockout was then cleared so their real ability to sign in wasn't left broken.
 
 ## In Progress
 

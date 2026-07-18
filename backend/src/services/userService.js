@@ -4,7 +4,10 @@ import { StatusCodes } from 'http-status-codes';
 import userRepository from '../repository/userRepository.js';
 import {
   checkOtpRestrictions,
+  checkSigninRestrictions,
+  clearSigninAttempts,
   sendOtp,
+  trackFailedSignin,
   trackOtpRequests
 } from '../utils/common/authHelper.js';
 import {
@@ -123,6 +126,8 @@ export const verifyUserService = async (data) => {
 
 export const signInService = async (data) => {
   try {
+    await checkSigninRestrictions(data.email);
+
     const user = await userRepository.getByEmail(data.email);
     if (!user) {
       throw new ClientError({
@@ -136,12 +141,15 @@ export const signInService = async (data) => {
     const isMatch = await bcrypt.compare(data.password, user.password);
 
     if (!isMatch) {
+      await trackFailedSignin(data.email);
       throw new ClientError({
         message: 'Invalid Password',
         statusCode: StatusCodes.UNAUTHORIZED,
         explanation: ['Invalid data sent from the client']
       });
     }
+
+    await clearSigninAttempts(data.email);
 
     return {
       id: user.id,
