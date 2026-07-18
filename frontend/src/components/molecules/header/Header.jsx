@@ -7,6 +7,7 @@ import {
   Moon,
   ShoppingBag,
   Sun,
+  Tags,
   User,
   Wallet
 } from 'lucide-react';
@@ -136,6 +137,13 @@ const Header = () => {
                   <DropdownMenuItem asChild>
                     <Link to="/instructor/earnings">
                       <Wallet /> Earnings
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                {canTeach && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/instructor/tags">
+                      <Tags /> Manage Tags
                     </Link>
                   </DropdownMenuItem>
                 )}

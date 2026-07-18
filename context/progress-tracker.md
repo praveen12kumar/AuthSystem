@@ -11,8 +11,9 @@ that feeds the course's live average rating. A "My Purchases" page lists what a 
 has bought, users can view/edit their own profile and change their password from one
 consolidated page, instructors can see what they've earned (after a platform
 commission) per course and overall, and the whole app has a real, user-toggleable
-light/dark theme. Nothing from the original scope is unbuilt anymore — remaining work
-is entirely refinement (see Next Up).
+light/dark theme. Tags can now be created/edited/deleted from a real UI
+(`/instructor/tags`) instead of Postman. Nothing from the original scope is unbuilt
+anymore — remaining work is entirely refinement (see Next Up).
 
 ## Completed
 
@@ -179,6 +180,20 @@ is entirely refinement (see Next Up).
   renders with working Edit/Delete, delete → rating correctly resets to 0 — plus the
   duplicate-review guard and the "instructor can't review own course" guard both
   confirmed via direct API calls. Test review cleaned up afterward.
+- **Tag management UI** (`/instructor/tags`, `INSTRUCTOR`/`ADMIN` — the backend has
+  always allowed both roles to write tags, so the UI gate matches rather than
+  introducing a new admin-only concept that doesn't exist server-side). List/create/
+  edit/delete — the backend already had full Tag CRUD, this was a frontend-only unit.
+  Prompted directly by the user: they'd been calling `PUT`/`DELETE /tags/:id` via
+  Postman because the only existing tag UI was a "create" dialog buried inside the
+  course form (`CreateTagDialog`, left untouched — still used there for quick inline
+  creation). Each tag's usage count (`Course.tags` reference count, computed client-side
+  from the already-fetched course list, no new endpoint) shows next to it, and deleting
+  a tag that's still in use surfaces an explicit warning about the dangling reference it
+  would leave behind — the backend doesn't block this deletion, so the UI warns instead.
+  Live-verified: create → edit → delete round-trip, the in-use warning rendering
+  correctly against the real "JavaScript" tag (2 courses), and a `STUDENT` account
+  correctly redirected away from the route.
 
 ## In Progress
 
