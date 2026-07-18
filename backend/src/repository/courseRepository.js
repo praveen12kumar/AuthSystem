@@ -34,6 +34,33 @@ const courseRepository = {
       { new: true }
     );
     return response;
+  },
+
+  addReview: async function (courseId, reviewId) {
+    const response = await Course.findByIdAndUpdate(
+      courseId,
+      { $push: { reviews: reviewId } },
+      { new: true }
+    );
+    return response;
+  },
+
+  removeReview: async function (courseId, reviewId) {
+    const response = await Course.findByIdAndUpdate(
+      courseId,
+      { $pull: { reviews: reviewId } },
+      { new: true }
+    );
+    return response;
+  },
+
+  updateRatingStats: async function (courseId, averageRating, numberOfRatings) {
+    const response = await Course.findByIdAndUpdate(
+      courseId,
+      { $set: { averageRating, numberOfRatings } },
+      { new: true }
+    );
+    return response;
   }
 };
 

@@ -28,12 +28,10 @@ Client (React) --axios--> /api/v1/* (Express) --> service layer --> repository l
 ```
 
 - Request layering is strict and consistently followed for User, Tag, Course, Section,
-  SubSection, and Payment: `route → validate(zodSchema) middleware → controller → service →
-  repository → Mongoose model`. Controllers never call Mongoose directly.
-- Course, Section, SubSection, Payment, and CourseProgress all have full CRUD/flow
-  layers now.
-- Review model exists but has no service/repository/controller/route layer yet — only
-  the Mongoose schema exists for it today.
+  SubSection, Payment, and Review: `route → validate(zodSchema) middleware → controller
+  → service → repository → Mongoose model`. Controllers never call Mongoose directly.
+- Course, Section, SubSection, Payment, CourseProgress, and Review all have full
+  CRUD/flow layers now — every domain in the original data model is wired up end to end.
 
 ## Storage Model
 
@@ -239,6 +237,38 @@ Client (React) --axios--> /api/v1/* (Express) --> service layer --> repository l
   user) — the actual enrollment check happens inside `CoursePlayer` itself (`canView`,
   same `isOwner || isEnrolled` logic as `CourseDetail`), showing a locked screen rather
   than attempting playback for a non-enrolled visitor.
+
+## Review Model
+
+- One review per `(user, course)` pair (unique index, same shape as `CourseProgress`) —
+  `rating` (1–5, required) plus an optional `comment`. `GET /reviews?course=<id>` is
+  public (like Tag/Course/Section reads); `POST /reviews`, `PUT /reviews/:id`, `DELETE
+  /reviews/:id` require `isAuthenticated`.
+- **Who can post a review**: the caller must be enrolled in the course (`ADMIN` bypasses
+  the enrollment check, same rule as the Progress/SubSection domains) **and must not be
+  the course's own instructor**, regardless of role — an `ADMIN` who happens to also be
+  the instructor of record is still blocked from reviewing their own course. This second
+  check is unconditional, unlike the enrollment bypass. `isReviewOwnerOrAdmin`
+  (`authMiddleware.js`) separately gates *update/delete* to the review's own author (or
+  `ADMIN`) — a completely different ownership shape than "course instructor," since a
+  review belongs to whoever wrote it, not to the course.
+- **Denormalized reviewer identity**: `reviewerName`/`reviewerAvatar` are snapshotted
+  onto the `Review` document at creation time, not resolved via a join — this codebase
+  never does Mongoose `.populate()`, and unlike Tag (small, fully public, listable via
+  `useTags`), `User` isn't a browsable domain and has no `GET /users` endpoint, so
+  there's no cheap way to resolve "who wrote this" client-side the way `CourseCard`
+  resolves tag names. The tradeoff: a reviewer's displayed name/avatar reflects what
+  they were at post time, not their current profile — accepted, matches how most
+  real-world review systems actually behave.
+- **`Course.averageRating`/`numberOfRatings` are recomputed after every
+  create/update/delete**, not maintained incrementally — `recomputeCourseRatingStats`
+  (`reviewService.js`) refetches all of a course's reviews and averages them in JS
+  (rounded to 1 decimal), the same "fetch and sum" style `courseProgressService` uses
+  for completion percentages rather than a Mongo aggregation pipeline. Simple and
+  correct at this scale; would need revisiting if a course ever had thousands of reviews.
+- A duplicate `POST /reviews` for a course the user already reviewed hits the unique
+  index and surfaces as a clean 400 ("use update instead"), not a raw Mongo duplicate-key
+  error — same `error.code === 11000` handling pattern used in `userService.js`.
 
 ## Invariants
 

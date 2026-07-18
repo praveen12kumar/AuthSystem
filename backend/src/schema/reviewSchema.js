@@ -21,6 +21,17 @@ const reviewSchema = new mongoose.Schema({
     type: String,
     trim: true,
   },
+  // Denormalized snapshot of the reviewer's identity at post time - this
+  // codebase never does Mongoose .populate() and there is no public "get
+  // user by id" endpoint (User isn't a browsable domain like Tag/Course), so
+  // reviews carry their own display name/avatar rather than requiring a join.
+  reviewerName: {
+    type: String,
+    trim: true,
+  },
+  reviewerAvatar: {
+    type: String,
+  },
 }, {
   timestamps: true,
 });

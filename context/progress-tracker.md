@@ -2,15 +2,17 @@
 
 ## Current Phase
 
-Auth, Tag, Course, Section, SubSection, Payment/Enrollment, CourseProgress, and Profile
-are all functionally complete end-to-end, backend **and** frontend. Instructors upload
-a real lesson video per section; students buy a course via Razorpay Checkout, then
-watch its lessons in a dedicated Course Player page (progress tracked per-lesson, not
-just "logged in and enrolled"). A "My Purchases" page lists what a student has bought,
-users can view/edit their own profile (name, avatar, about, phone, gender, DOB) and
-change their password from one consolidated page, instructors can see what they've
-earned (after a platform commission) per course and overall, and the whole app now has
-a real, user-toggleable light/dark theme. Review is still open (see Next Up).
+Every domain in the original data model — Auth, Tag, Course, Section, SubSection,
+Payment/Enrollment, CourseProgress, Profile, and now Review — is functionally complete
+end-to-end, backend **and** frontend. Instructors upload a real lesson video per
+section; students buy a course via Razorpay Checkout, watch its lessons in a dedicated
+Course Player page (progress tracked per-lesson), and can leave a star rating + comment
+that feeds the course's live average rating. A "My Purchases" page lists what a student
+has bought, users can view/edit their own profile and change their password from one
+consolidated page, instructors can see what they've earned (after a platform
+commission) per course and overall, and the whole app has a real, user-toggleable
+light/dark theme. Nothing from the original scope is unbuilt anymore — remaining work
+is entirely refinement (see Next Up).
 
 ## Completed
 
@@ -164,6 +166,19 @@ a real, user-toggleable light/dark theme. Review is still open (see Next Up).
   the same course, the `INSTRUCTOR`/`ADMIN`-only role gate (a `STUDENT` gets 403), and
   that a payment predating this feature correctly counts as `0` earnings rather than a
   guess — all against the real dev DB, with every test payment cleaned up afterward.
+- **Reviews & ratings** — the last domain that was schema-only got its full
+  route/controller/service/repository layer. One review per `(user, course)`, enrolled
+  students only (course's own instructor blocked regardless of role), reviewer
+  name/avatar denormalized onto the review at post time (no `.populate()`, no public
+  user-lookup endpoint to join against), `Course.averageRating`/`numberOfRatings`
+  recomputed after every create/update/delete. New "Reviews" section on the course
+  detail page: a star-picker + comment form for eligible students (switches to
+  edit/delete once they've already reviewed), a read-only list for everyone else. See
+  `architecture-context.md` Review Model. Live-verified end-to-end in the browser: post
+  a review → header rating updates from "0.0" to "4.0 (1 ratings)" live, review card
+  renders with working Edit/Delete, delete → rating correctly resets to 0 — plus the
+  duplicate-review guard and the "instructor can't review own course" guard both
+  confirmed via direct API calls. Test review cleaned up afterward.
 
 ## In Progress
 

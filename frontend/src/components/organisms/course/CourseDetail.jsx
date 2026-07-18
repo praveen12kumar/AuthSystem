@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+import CourseReviews from '@/components/organisms/course/CourseReviews';
 import LessonList from '@/components/organisms/course/LessonList';
 import {
   Accordion,
@@ -32,7 +33,16 @@ const CourseDetail = ({
   isOwner,
   isEnrolled,
   onEnroll,
-  isEnrolling
+  isEnrolling,
+  reviews,
+  reviewsLoading,
+  canReview,
+  currentUserId,
+  onCreateReview,
+  onUpdateReview,
+  onDeleteReview,
+  isSubmittingReview,
+  isDeletingReview
 }) => {
   if (isLoading) {
     return (
@@ -160,6 +170,18 @@ const CourseDetail = ({
               </Accordion>
             )}
           </section>
+
+          <CourseReviews
+            reviews={reviews}
+            isLoading={reviewsLoading}
+            canReview={canReview}
+            currentUserId={currentUserId}
+            onCreate={onCreateReview}
+            onUpdate={onUpdateReview}
+            onDelete={onDeleteReview}
+            isSubmitting={isSubmittingReview}
+            isDeleting={isDeletingReview}
+          />
         </Motion.div>
 
         <div className="lg:col-span-1">

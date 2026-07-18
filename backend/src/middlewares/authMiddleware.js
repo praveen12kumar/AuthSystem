@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 
 import { JWT_SECRET } from '../config/serverConfig.js';
 import courseRepository from '../repository/courseRepository.js';
+import reviewRepository from '../repository/reviewRepository.js';
 import sectionRepository from '../repository/sectionRepository.js';
 import subSectionRepository from '../repository/subSectionRepository.js';
 import userRepository from '../repository/userRepository.js';
@@ -319,6 +320,49 @@ export const isSectionOwnerOrAdmin = async (req, res, next) => {
         customErrorResponse({
           explanation: 'Section id is not a valid identifier',
           message: 'Invalid section id'
+        })
+      );
+    }
+    return res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json(internalErrorResponse(error));
+  }
+};
+
+// Must run after isAuthenticated - resolves ownership via the review's own
+// author (req.params.id is the review being updated/deleted), not the
+// course's instructor - a review belongs to whoever wrote it. ADMIN bypasses.
+export const isReviewOwnerOrAdmin = async (req, res, next) => {
+  try {
+    const review = await reviewRepository.getById(req.params.id);
+    if (!review) {
+      return res.status(StatusCodes.NOT_FOUND).json(
+        customErrorResponse({
+          explanation: 'No review exists with this id',
+          message: 'Review not found'
+        })
+      );
+    }
+
+    const isOwner = String(review.user) === req.user.id;
+    const isAdmin = req.user.role === 'ADMIN';
+    if (!isOwner && !isAdmin) {
+      return res.status(StatusCodes.FORBIDDEN).json(
+        customErrorResponse({
+          explanation: 'Only the review author or an admin can perform this action',
+          message: 'You do not have permission to perform this action'
+        })
+      );
+    }
+
+    req.review = review;
+    return next();
+  } catch (error) {
+    if (error.name === 'CastError') {
+      return res.status(StatusCodes.BAD_REQUEST).json(
+        customErrorResponse({
+          explanation: 'Review id is not a valid identifier',
+          message: 'Invalid review id'
         })
       );
     }
