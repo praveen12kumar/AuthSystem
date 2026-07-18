@@ -15,9 +15,10 @@ light/dark theme. Tags can now be created/edited/deleted from a real UI
 (`/instructor/tags`) instead of Postman, and an admin can view every user and change
 roles from `/admin/users` — the first genuinely `ADMIN`-only (not `INSTRUCTOR`-shared)
 page in the app. Nothing from the original scope is unbuilt anymore — remaining work is
-entirely refinement (see Next Up). The backend also has its first automated tests now
-(Vitest + supertest + in-memory MongoDB, covering Auth) — see `ai-workflow-rules.md`
-Verification for the pattern; everything else is still manual-verification-only.
+entirely refinement (see Next Up). The backend also has automated tests now (Vitest +
+supertest + in-memory MongoDB, covering Auth and Payment — 18 tests) — see
+`ai-workflow-rules.md` Verification for the pattern; everything else is still
+manual-verification-only.
 Enrolling now goes through a real checkout/order-review page
 (`/courses/:id/checkout`, course summary + account info + bill summary) before opening
 Razorpay, instead of jumping straight from "Enroll Now" into the payment widget.
@@ -249,6 +250,25 @@ Razorpay, instead of jumping straight from "Enroll Now" into the payment widget.
   Razorpay order + a real `PENDING` Payment record, cleaned up afterward), the Razorpay
   widget opening with the correct price and pre-filled email, and both redirect guards
   (already-enrolled student, course's own instructor).
+- **Automated test coverage extended to Payment** — 10 new tests (18 total now), same
+  Vitest + supertest + in-memory MongoDB pattern as Auth.
+  `POST /payments/orders`: the created order's amount always reflects the real
+  server-computed discounted price even when the client sends its own `amount` field
+  (schema has no such field, so it's silently stripped — asserted directly against the
+  mocked `razorpay.orders.create` call, not just the response); an instructor buying
+  their own course and an already-enrolled student both get rejected *before* Razorpay
+  is ever called (asserted via `expect(razorpay.orders.create).not.toHaveBeenCalled()`).
+  `POST /payments/verify`: a valid signature flips the payment to `SUCCESS`, snapshots
+  the commission split, and enrolls the student; a tampered signature (well-formed hex,
+  wrong value - exercises `timingSafeEqual`'s real comparison path, not just the
+  length-mismatch fast path) flips it to `FAILED` and enrolls nobody; verifying someone
+  else's payment is 403; and calling verify twice with the same valid signature enrolls
+  the student exactly once (`$addToSet` idempotency, asserted by counting matches in
+  `studentsEnrolled`, not just checking the second call didn't error). Only
+  `razorpay.orders.create` is mocked (order creation would otherwise create real orders
+  against the live account on every test run) — signature verification is tested for
+  real, since it's pure HMAC crypto against our own secret and never touches Razorpay
+  at all. See `ai-workflow-rules.md` Verification.
 
 ## In Progress
 
@@ -257,9 +277,12 @@ Nothing actively in progress.
 ## Next Up
 
 Pick one (per `ai-workflow-rules.md` scoping rule — one at a time):
-- Extend automated test coverage to another domain (Payment's signature verification
-  is the highest-value next target — real money, easy to get subtly wrong — followed by
-  Course/enrollment ownership checks).
+- Extend automated test coverage to another domain — the ownership/authorization
+  middlewares (`isCourseOwnerOrAdmin`, `isEnrolledOrOwnerOrAdmin`, etc.) are the
+  highest-value next target: exactly the class of bug that already bit this app once
+  for real (the SubSection video-leak fix), so automated coverage there is cheap
+  insurance against it recurring silently. Course/Section/SubSection CRUD is the next
+  tier after that.
 - Course search/filter is currently client-side only (catalog page filters an
   already-fetched full course list) — `GET /courses` has no server-side query params;
   revisit if the catalog needs to scale past fetch-everything

@@ -58,9 +58,15 @@ Before reporting a unit as done, walk this checklist explicitly:
   `afterEach`) — only genuinely costly/noisy externals (actually sending an email via
   nodemailer) get mocked, and only the transport call itself, not the surrounding
   business logic. New domains should extend this pattern (one test file per route
-  group under `tests/<domain>/`) rather than introducing a different one. Currently
-  covers: Auth (signin, signup, email verification). Not yet covered: everything else
-  — see `progress-tracker.md` Next Up for what's next in line.
+  group under `tests/<domain>/`) rather than introducing a different one. Only genuinely
+  live external services get faked, and only the specific call that would otherwise hit
+  them for real - `tests/payments/payments.test.js` mocks just `razorpay.orders.create`
+  (order creation would otherwise create real orders against the live Razorpay account
+  on every test run) while testing signature verification for real, since that's pure
+  HMAC crypto against our own secret and needs no external call at all. Currently
+  covers: Auth (signin, signup, email verification), Payment (order creation with
+  server-computed pricing, signature verification, idempotent enrollment). Not yet
+  covered: everything else — see `progress-tracker.md` Next Up for what's next in line.
 - **Frontend**: still no automated test suite. For UI changes, run the dev server and
   exercise the flow in a browser (Playwright, per Session Notes) before calling it done.
 
