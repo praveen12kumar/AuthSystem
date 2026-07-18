@@ -1,20 +1,27 @@
 import { useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import Header from '@/components/molecules/header/Header';
 import CourseDetail from '@/components/organisms/course/CourseDetail';
 import { useCourse } from '@/hooks/apis/course/useCourse';
+import { useCreateOrder } from '@/hooks/apis/payment/useCreateOrder';
+import { useVerifyPayment } from '@/hooks/apis/payment/useVerifyPayment';
 import { useSections } from '@/hooks/apis/section/useSections';
 import { useTags } from '@/hooks/apis/tag/useTags';
 import { useAuth } from '@/hooks/conext/useAuth';
+import { loadRazorpayScript } from '@/utils/loadRazorpayScript';
 
 const CourseDetailContainer = () => {
   const { id } = useParams();
   const { auth } = useAuth();
+  const navigate = useNavigate();
 
   const { course, isLoading: courseLoading, error } = useCourse(id);
   const { sections, isLoading: sectionsLoading } = useSections(id);
   const { tags } = useTags();
+  const { createOrder, isPending: isCreatingOrder } = useCreateOrder();
+  const { verifyPayment, isPending: isVerifying } = useVerifyPayment();
 
   const tagMap = useMemo(
     () => Object.fromEntries(tags.map((tag) => [tag._id, tag.name])),
@@ -25,6 +32,58 @@ const CourseDetailContainer = () => {
     auth.user &&
     course &&
     (String(course.instructor) === auth.user.id || auth.user.role === 'ADMIN');
+
+  const isEnrolled =
+    auth.user &&
+    course?.studentsEnrolled?.some((studentId) => String(studentId) === auth.user.id);
+
+  const handleEnroll = async () => {
+    if (!auth.user) {
+      navigate('/auth/signin');
+      return;
+    }
+
+    const scriptLoaded = await loadRazorpayScript();
+    if (!scriptLoaded) {
+      toast.error('Could not load the payment gateway. Check your connection and try again.');
+      return;
+    }
+
+    let order;
+    try {
+      const response = await createOrder({ course: course._id });
+      order = response.data;
+    } catch {
+      return; // toast already handled in useCreateOrder
+    }
+
+    const razorpay = new window.Razorpay({
+      key: order.keyId,
+      amount: order.amount,
+      currency: order.currency,
+      order_id: order.orderId,
+      name: 'LMS',
+      description: course.title,
+      prefill: {
+        name: `${auth.user.firstName} ${auth.user.lastName}`,
+        email: auth.user.email
+      },
+      theme: { color: '#6d5ce8' },
+      handler: async (checkoutResponse) => {
+        try {
+          await verifyPayment({ ...checkoutResponse, courseId: course._id });
+        } catch {
+          // toast already handled in useVerifyPayment
+        }
+      }
+    });
+
+    razorpay.on('payment.failed', () => {
+      toast.error('Payment failed - you have not been charged.');
+    });
+
+    razorpay.open();
+  };
 
   return (
     <div className="min-h-dvh bg-background">
@@ -37,6 +96,9 @@ const CourseDetailContainer = () => {
         sectionsLoading={sectionsLoading}
         error={error}
         isOwner={isOwner}
+        isEnrolled={isEnrolled}
+        onEnroll={handleEnroll}
+        isEnrolling={isCreatingOrder || isVerifying}
       />
     </div>
   );

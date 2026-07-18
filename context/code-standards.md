@@ -110,11 +110,28 @@
   different resolution path and stays separate — don't force every ownership case into
   one parameterized factory, but do reuse one function across call sites checking the
   exact same thing from a different request field.
+- **Read-access gates beyond "logged in"** (a resource whose response carries paid
+  content, e.g. SubSection's `videoUrl`): write a concrete middleware following the same
+  dual-resolution shape as an ownership middleware, but check enrollment OR ownership OR
+  `ADMIN`, not ownership alone (`isEnrolledOrOwnerOrAdmin` in `authMiddleware.js`) — a
+  student who never paid should never see the underlying resource, only an
+  instructor/admin previewing their own content or a student who's actually enrolled.
 - **Listing a sub-resource by its parent** (e.g. Sections of a Course): use a query
   param on the flat route (`GET /sections?course=<id>`), not a nested route
   (`/courses/:id/sections`) — keeps every domain's router flat and consistent with
   Tag/Course, rather than mixing two routing styles. The query param name matches the
   FK field name (`course`, not `courseId`).
+- **Idempotent set-membership updates** (e.g. enrolling a student): use `$addToSet`, not
+  `$push`, when the same write might legitimately be retried (`courseRepository.addStudent`
+  guards against a duplicate/retried payment-verification call double-enrolling the same
+  user). Reserve `$push` for denormalized back-references that are only ever written once
+  per child (`User.courses`, `Course.sections`).
+- **External-service secrets used for verification** (e.g. `RAZORPAY_API_SECRET`): only
+  ever touch them server-side inside the service layer that needs them
+  (`paymentService.js`'s `isSignatureValid`); never log, return, or pass them to the
+  frontend. Compare received vs. expected signatures with `crypto.timingSafeEqual`, never
+  `===` — a plain string compare leaks timing information about how many leading bytes
+  matched.
 
 ## Frontend (`frontend/src`)
 
@@ -167,7 +184,20 @@
 - **Price display is USD-only, presentational**: the `Course` schema has no currency
   field, just a `Number`. `CourseCard`/`CourseDetail`/`InstructorDashboard` hardcode a
   `$` prefix — this is a display assumption, not a stored/validated currency; revisit if
-  multi-currency is ever needed.
+  multi-currency is ever needed. Note this is already inconsistent with Payments, which
+  hardcodes `currency: 'INR'` when creating the Razorpay order — the displayed `$` price
+  and the actual charged currency don't match; a known gap, not a bug to silently "fix"
+  by picking one side without asking.
+- **Third-party checkout script loading**: load a vendor's widget script (e.g. Razorpay's
+  `checkout.js`) once via a cached-promise helper (`utils/loadRazorpayScript.js`), not
+  inline in a component — `window.Razorpay` after the first successful load, a shared
+  in-flight promise for concurrent calls, so a second "Enroll" click doesn't inject the
+  `<script>` tag twice.
+- **Payment orchestration logic lives in the Container, not the organism**: `handleEnroll`
+  (script load → create order → open Razorpay checkout → verify on the `handler`
+  callback) is all in `CourseDetailContainer.jsx`; `CourseDetail.jsx` only receives
+  `isEnrolled`/`onEnroll`/`isEnrolling` props — same Container/presentational split as
+  every other domain, no exception for payment flows.
 
 ## Cross-cutting
 

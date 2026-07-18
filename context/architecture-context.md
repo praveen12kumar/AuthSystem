@@ -11,6 +11,9 @@
 - **Email**: `nodemailer` + `ejs` templates (OTP, password reset).
 - **File upload**: `multer` (memory storage, not disk) + `cloudinary` (image storage/CDN)
   — wired up for Course `thumbnail`; see File Upload Model below.
+- **Payments**: `razorpay` (Standard Checkout) — order creation server-side, payment
+  confirmation client-side via the Checkout.js widget, success verified server-side via
+  HMAC-SHA256 signature check. See Payment Model below.
 - **Planned, not yet wired up**: `swagger-autogen` (API docs) — installed but no code
   references it yet `[INFERRED: intent]`.
 
@@ -21,14 +24,15 @@ Client (React) --axios--> /api/v1/* (Express) --> service layer --> repository l
                                                  \-> Redis (OTP state only)
                                                  \-> nodemailer (transactional email)
                                                  \-> Cloudinary (image storage, via service layer)
+                                                 \-> Razorpay (order create + signature verification, via service layer)
 ```
 
 - Request layering is strict and consistently followed for User, Tag, Course, Section,
-  and SubSection: `route → validate(zodSchema) middleware → controller → service →
+  SubSection, and Payment: `route → validate(zodSchema) middleware → controller → service →
   repository → Mongoose model`. Controllers never call Mongoose directly.
-- Course, Section, and SubSection all have full CRUD now.
-- Review/Payment/CourseProgress models exist but have no service/repository/controller/
-  route layer yet — only the Mongoose schema exists for these today.
+- Course, Section, SubSection, and Payment all have full CRUD/flow layers now.
+- Review/CourseProgress models exist but have no service/repository/controller/route
+  layer yet — only the Mongoose schema exists for these today.
 
 ## Storage Model
 
@@ -117,6 +121,37 @@ Client (React) --axios--> /api/v1/* (Express) --> service layer --> repository l
   `z.coerce.number()`, array fields need a JSON-encoded string + `z.preprocess` (HTML
   forms can't carry real arrays) — see `validators/courseSchema.js`.
 
+## Payment Model
+
+- **Flow**: `POST /payments/orders {course}` (authenticated) → service loads the course,
+  rejects if the caller is the course's own instructor or already in
+  `studentsEnrolled`, computes `finalPrice` from `course.price`/`discount` server-side,
+  creates a Razorpay order (`amount` in paise, `currency: 'INR'`), and writes a `Payment`
+  document with `status: 'PENDING'`. The response (`orderId`, `amount`, `currency`,
+  `keyId`) is handed to the Razorpay Checkout.js widget on the frontend
+  (`loadRazorpayScript` + `new window.Razorpay({...}).open()`), which drives the actual
+  card/UPI/bank flow entirely outside this app.
+- On completion, Razorpay's client-side `handler` callback receives
+  `{razorpay_order_id, razorpay_payment_id, razorpay_signature}` and the frontend posts
+  it straight to `POST /payments/verify` — this callback is **not trusted on its own**,
+  it only triggers the real check.
+- **Server-side signature verification is the only source of truth for "did this payment
+  succeed."** `isSignatureValid` (`paymentService.js`) recomputes
+  `HMAC-SHA256(orderId|paymentId, RAZORPAY_API_SECRET)` and compares it to the received
+  signature with `crypto.timingSafeEqual` (never `===`, to avoid a timing side-channel).
+  A mismatch flips the `Payment` to `status: 'FAILED'` and returns 400; a match flips it
+  to `SUCCESS`, records `gatewayPaymentId`/`gatewaySignature`, and enrolls the student.
+- Enrollment itself is `courseRepository.addStudent` using Mongo's `$addToSet` (not
+  `$push`) on `Course.studentsEnrolled` — deliberately idempotent so a duplicate/retried
+  verify call can never double-enroll the same user.
+- **No webhook handler yet**: verification only happens when the frontend calls
+  `/payments/verify` after Checkout.js's `handler` fires. A payment that succeeds on
+  Razorpay's side but never reaches this endpoint (closed tab, network drop) leaves the
+  `Payment` stuck at `PENDING` and the user unenrolled — a known gap, see
+  `progress-tracker.md`.
+- Razorpay `receipt` is capped at 40 chars by Razorpay itself — built as
+  `rcpt_${courseId.slice(-8)}_${Date.now()}`, not the full 24-char ObjectId.
+
 ## Invariants
 
 Only things whose violation is a bug — not preferences:
@@ -140,10 +175,20 @@ Only things whose violation is a bug — not preferences:
   as Tag/Course/Section titles. Originally shipped as a fully public route by copying
   that pattern without carving out the exception — found live (any logged-out visitor
   could fetch and download lesson videos) and fixed by requiring login. This is
-  deliberately an **interim** gate, not the final one: any authenticated user can watch
-  any lesson today, regardless of enrollment, because enrollment doesn't exist yet (see
-  `progress-tracker.md` Next Up). Tighten to a real ownership/enrollment check once
-  Payment/Enrollment ships — don't mistake "requires login" for "requires having paid."
+  was originally an **interim** gate (any authenticated user could watch any lesson,
+  regardless of enrollment) until Payment/Enrollment existed to check against. Now that
+  it does (see Payment Model below), the gate is real: `isEnrolledOrOwnerOrAdmin`
+  (`authMiddleware.js`) resolves the lesson's course (via `req.query.section` for the
+  list route, or by looking up the subsection via `req.params.id` for the single-lesson
+  route, then walking `subsection → section → course`) and requires the caller be in
+  `course.studentsEnrolled`, the course's own instructor, or an `ADMIN` — a logged-in
+  non-enrolled `STUDENT` now gets 403, not 200. Live-verified against the real dashboard
+  DB: a non-enrolled student → 403 on both routes; the same student after being enrolled,
+  the course's instructor, and an `ADMIN` → 200 on all three. The frontend mirrors this:
+  `CourseDetail.jsx` only renders `LessonList` (which hits the gated endpoint) when
+  `isOwner || isEnrolled`; otherwise the accordion shows a "Enroll to unlock this
+  section's lessons" message instead of silently degrading to an empty "coming soon"
+  state.
 - A Course must have a `thumbnail` (Mongoose `required` + route-level `requireFile` on
   create) and at least one existing Tag id (Zod shape-check + a service-layer existence
   check via `tagRepository.findByIds` — a well-formed but nonexistent tag id is rejected).
@@ -164,6 +209,15 @@ Only things whose violation is a bug — not preferences:
 - **A lesson's `duration` is always Cloudinary-derived, never accepted from the client**
   — `createSubSectionSchema` has no `duration` field at all; the service reads it off
   the video upload response. Don't add a manual-duration input on the frontend.
+- **A payment's `amount` is always server-computed from `course.price`/`discount`, never
+  accepted from the client** — `createOrderSchema` has no `amount` field; accepting one
+  would let a client name their own price. See Payment Model above.
+- **Payment success is only ever established by server-side HMAC signature
+  verification**, never by trusting the client-reported Razorpay `handler` callback on
+  its own — see Payment Model above.
+- An instructor cannot purchase their own course (`createOrderService` checks
+  `course.instructor === userId`), and a user already in `course.studentsEnrolled`
+  cannot open a second order for the same course.
 
 ## Architecture Decisions
 

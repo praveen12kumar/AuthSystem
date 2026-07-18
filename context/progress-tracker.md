@@ -2,12 +2,12 @@
 
 ## Current Phase
 
-Auth, Tag, Course, Section, and SubSection are all functionally complete end-to-end,
-backend **and** frontend, full CRUD on every one. Instructors upload a real lesson video
-per section and can rename/replace-video/delete it; students watch it inline on the
-course detail page. Payment/Review/CourseProgress are still open (see Next Up).
-Enrollment/checkout is intentionally a disabled "coming soon" affordance on the course
-detail page, not a real flow — Payment isn't wired up.
+Auth, Tag, Course, Section, SubSection, and Payment/Enrollment are all functionally
+complete end-to-end, backend **and** frontend. Instructors upload a real lesson video per
+section and can rename/replace-video/delete it; students watch it inline on the course
+detail page and can now actually buy a course via Razorpay Checkout, with the course
+detail page's Enroll button showing a real "✓ Enrolled" state afterward. Review/
+CourseProgress are still open (see Next Up).
 
 ## Completed
 
@@ -70,13 +70,43 @@ detail page, not a real flow — Payment isn't wired up.
   protection on its own). Live-verified: anonymous request now 401s, a logged-in
   non-owner `STUDENT` still gets 200 (matches the agreed interim policy), frontend
   degrades to the existing "no lessons" empty state when logged out rather than crashing.
+- **Payments/Enrollment — full Razorpay Standard Checkout integration, backend and
+  frontend.** `POST /payments/orders` creates a Razorpay order with a server-computed
+  amount (never client-supplied) and a `PENDING` `Payment` record; the frontend opens
+  Razorpay's Checkout.js widget, and on completion posts the gateway's response to
+  `POST /payments/verify`, which recomputes the HMAC-SHA256 signature
+  (`crypto.timingSafeEqual`, not `===`) as the sole source of truth for success, then
+  enrolls the student via an idempotent `$addToSet` on `Course.studentsEnrolled`. See
+  `architecture-context.md` Payment Model for the full flow and
+  `code-standards.md` for the `$addToSet` vs. `$push` and secret-handling conventions.
+  `CourseDetailContainer`/`CourseDetail` now show a real "✓ Enrolled" state instead of
+  the old placeholder toast. **Fully live-verified**: a genuine Razorpay test-mode
+  payment was driven end-to-end via Playwright (real order, real Checkout UI, real OTP
+  step, real signature verification, real `studentsEnrolled` update), then all resulting
+  test artifacts (Payment records, test enrollment) were cleaned up. Two real bugs caught
+  during this build: Razorpay's `receipt` field has an undocumented-until-hit 40-char
+  cap (`course_${courseId}_${Date.now()}` was too long); this specific test account
+  rejects generic international test cards, domestic test Mastercard
+  `5267 3181 8797 5449` works. **Not yet done as part of this feature** (see Next Up):
+  no webhook handler (a payment that succeeds on Razorpay's side but never reaches
+  `/payments/verify` — closed tab, network drop — leaves the `Payment` stuck `PENDING`
+  and the user unenrolled).
+- **Tightened the SubSection video-read gate from "any logged-in user" to real
+  enrollment**, now that Payment/Enrollment exists to check against — the follow-up the
+  interim policy above was always waiting on. `isEnrolledOrOwnerOrAdmin`
+  (`authMiddleware.js`) now requires `course.studentsEnrolled` membership, course
+  ownership, or `ADMIN` on both SubSection read routes; the frontend
+  (`CourseDetail.jsx`) only renders `LessonList` when `isOwner || isEnrolled`, showing an
+  "Enroll to unlock" message otherwise instead of a misleading empty state. Found this
+  gap because the user, logged in as a non-enrolled student
+  (`kunalkmeshram19@gmail.com`), reported they could still play course videos — live
+  verification confirmed the old behavior (200) and the fix (403 for non-enrolled, 200
+  for enrolled/owner/admin) directly against the real dev database.
 
 ## In Progress
 
-- Reformatting Mongoose model files (`schema/courseProgressSchema.js`,
-  `courseSchema.js`, `tagSchema.js`, `userSchema.js`) to match `.prettierrc`
-  (single-quote, no trailing comma) — uncommitted in the working tree as of this
-  session. New `paymentSchema.js` also uncommitted.
+- Nothing actively in progress. Payment/Enrollment (see Completed) is built and
+  live-verified but not yet committed/pushed.
 
 ## Next Up
 
@@ -84,12 +114,16 @@ Pick one (per `ai-workflow-rules.md` scoping rule — one at a time):
 - Course search/filter is currently client-side only (catalog page filters an
   already-fetched full course list) — `GET /courses` has no server-side query params;
   revisit if the catalog needs to scale past fetch-everything
-- Payments & checkout (wire up the `Payment` model into a real purchase flow) — the
-  course detail page's "Enroll" button is a placeholder toast today. When this lands,
-  also tighten SubSection reads from "any logged-in user" to a real enrollment check
-  (see `architecture-context.md` Invariants) — that interim gate was only ever meant to
-  hold until this existed.
-- Student enrollment action
+- Payment webhook handling — right now a payment can succeed on Razorpay's side but
+  never get recorded here if the client never calls `/payments/verify` (closed tab,
+  network drop mid-flow); a Razorpay webhook would let the backend confirm success
+  independent of the client. No webhook signature-verification exists yet.
+- USD-vs-INR mismatch: displayed course prices are hardcoded `$`, but the Razorpay order
+  is always created in `currency: 'INR'` at the raw numeric price — the amount actually
+  charged doesn't match the displayed currency symbol. Needs a product decision (convert
+  displayed price, or store/charge in the currency actually displayed) before fixing.
+- A "My Purchases" / order history page for students (Payment records exist but aren't
+  surfaced anywhere in the UI yet)
 
 ## Open Questions
 

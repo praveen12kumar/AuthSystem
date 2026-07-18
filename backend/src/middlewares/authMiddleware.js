@@ -209,6 +209,80 @@ export const isSubSectionOwnerOrAdmin = async (req, res, next) => {
   }
 };
 
+// Must run after isAuthenticated. Gates SubSection reads: the response
+// carries the real, playable videoUrl (paid content), so only the enrolled
+// student, the owning instructor, or an admin may view it - "any logged-in
+// user" was only ever an interim policy until Payment/Enrollment existed.
+// Resolves the course from req.query.section (list route) or by looking up
+// the subsection via req.params.id (single route), then walks up
+// section -> course.
+export const isEnrolledOrOwnerOrAdmin = async (req, res, next) => {
+  try {
+    let sectionId = req.query.section;
+    if (!sectionId && req.params.id) {
+      const subSection = await subSectionRepository.getById(req.params.id);
+      if (!subSection) {
+        return res.status(StatusCodes.NOT_FOUND).json(
+          customErrorResponse({
+            explanation: 'No lesson exists with this id',
+            message: 'Lesson not found'
+          })
+        );
+      }
+      sectionId = subSection.section;
+    }
+
+    if (!sectionId) {
+      return res.status(StatusCodes.BAD_REQUEST).json(
+        customErrorResponse({
+          explanation: 'Pass ?section=<sectionId> to list its lessons',
+          message: 'section query parameter is required'
+        })
+      );
+    }
+
+    const section = await sectionRepository.getById(sectionId);
+    if (!section) {
+      return res.status(StatusCodes.NOT_FOUND).json(
+        customErrorResponse({
+          explanation: 'No section exists with this id',
+          message: 'Section not found'
+        })
+      );
+    }
+
+    const course = await courseRepository.getById(section.course);
+    const isOwner = course && String(course.instructor) === req.user.id;
+    const isAdmin = req.user.role === 'ADMIN';
+    const isEnrolled = Boolean(
+      course?.studentsEnrolled?.some((id) => String(id) === req.user.id)
+    );
+
+    if (!isOwner && !isAdmin && !isEnrolled) {
+      return res.status(StatusCodes.FORBIDDEN).json(
+        customErrorResponse({
+          explanation: 'You must be enrolled in this course to view its lessons',
+          message: 'Enrollment required'
+        })
+      );
+    }
+
+    return next();
+  } catch (error) {
+    if (error.name === 'CastError') {
+      return res.status(StatusCodes.BAD_REQUEST).json(
+        customErrorResponse({
+          explanation: 'Section or lesson id is not a valid identifier',
+          message: 'Invalid id'
+        })
+      );
+    }
+    return res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json(internalErrorResponse(error));
+  }
+};
+
 // Must run after isAuthenticated - resolves ownership via the section's own
 // course, since update/delete only have the section id (req.params.id), not a
 // course id in the body. ADMIN bypasses the ownership check.

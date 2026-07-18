@@ -10,6 +10,7 @@ import {
 import {
   authorize,
   isAuthenticated,
+  isEnrolledOrOwnerOrAdmin,
   isSubSectionOwnerOrAdmin
 } from '../../middlewares/authMiddleware.js';
 import {
@@ -26,11 +27,11 @@ const router = express.Router();
 
 // Unlike Tag/Course/Section, SubSection reads are NOT public - the response
 // carries the real, playable videoUrl (the paid content itself), not just
-// browsable metadata. Until real enrollment exists, "logged in" is the
-// interim gate; tighten to an ownership/enrollment check once that's built.
-router.get('/', isAuthenticated, getSubSectionsBySection);
+// browsable metadata. Gated to the enrolled student, the owning instructor,
+// or an admin (see isEnrolledOrOwnerOrAdmin).
+router.get('/', isAuthenticated, isEnrolledOrOwnerOrAdmin, getSubSectionsBySection);
 
-router.get('/:id', isAuthenticated, getSubSectionById);
+router.get('/:id', isAuthenticated, isEnrolledOrOwnerOrAdmin, getSubSectionById);
 
 router.post(
   '/',

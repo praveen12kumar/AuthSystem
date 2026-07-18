@@ -20,6 +20,15 @@ const courseRepository = {
       { new: true }
     );
     return response;
+  },
+
+  addStudent: async function (courseId, userId) {
+    const response = await Course.findByIdAndUpdate(
+      courseId,
+      { $addToSet: { studentsEnrolled: userId } },
+      { new: true }
+    );
+    return response;
   }
 };
 

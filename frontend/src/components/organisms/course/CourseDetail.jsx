@@ -1,6 +1,5 @@
 import { motion as Motion } from 'framer-motion';
-import { Layers, Pencil, ShoppingCart, Star } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { CheckCircle2, Layers, Lock, Pencil, ShoppingCart, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import LessonList from '@/components/organisms/course/LessonList';
@@ -22,7 +21,10 @@ const CourseDetail = ({
   isLoading,
   sectionsLoading,
   error,
-  isOwner
+  isOwner,
+  isEnrolled,
+  onEnroll,
+  isEnrolling
 }) => {
   if (isLoading) {
     return (
@@ -52,10 +54,7 @@ const CourseDetail = ({
   const finalPrice = hasDiscount
     ? course.price - (course.price * course.discount) / 100
     : course.price;
-
-  const handleEnroll = () => {
-    toast('Enrollment & payments are coming soon!', { icon: '🚧' });
-  };
+  const canViewLessons = isOwner || isEnrolled;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
@@ -139,7 +138,14 @@ const CourseDetail = ({
                       </span>
                     </AccordionTrigger>
                     <AccordionContent>
-                      <LessonList sectionId={section._id} />
+                      {canViewLessons ? (
+                        <LessonList sectionId={section._id} />
+                      ) : (
+                        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Lock className="size-4" />
+                          Enroll to unlock this section&apos;s lessons
+                        </p>
+                      )}
                     </AccordionContent>
                   </AccordionItem>
                 ))}
@@ -161,9 +167,16 @@ const CourseDetail = ({
                   </span>
                 )}
               </div>
-              <Button size="lg" onClick={handleEnroll}>
-                <ShoppingCart /> Enroll Now
-              </Button>
+              {isEnrolled ? (
+                <Button size="lg" disabled className="pointer-events-none">
+                  <CheckCircle2 /> Enrolled
+                </Button>
+              ) : (
+                <Button size="lg" onClick={onEnroll} disabled={isEnrolling}>
+                  <ShoppingCart />
+                  {isEnrolling ? 'Processing...' : 'Enroll Now'}
+                </Button>
+              )}
               {isOwner && (
                 <Button asChild size="lg" variant="outline">
                   <Link to={`/instructor/courses/${course._id}/edit`}>
