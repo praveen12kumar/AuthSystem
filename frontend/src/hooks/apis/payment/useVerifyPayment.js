@@ -13,6 +13,7 @@ export const useVerifyPayment = () => {
         mutationFn: verifyPaymentRequest,
         onSuccess: (response, variables) => {
             queryClient.invalidateQueries({ queryKey: ['course', variables.courseId] });
+            queryClient.invalidateQueries({ queryKey: ['payments', 'my'] });
             toast.success('Enrolled successfully! Happy learning.');
         },
         onError: (error) => {

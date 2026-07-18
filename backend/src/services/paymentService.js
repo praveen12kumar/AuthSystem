@@ -107,6 +107,14 @@ export const createOrderService = async (courseId, userId) => {
   }
 };
 
+export const getMyPaymentsService = async (userId) => {
+  try {
+    return await paymentRepository.getByUser(userId);
+  } catch (error) {
+    handlePaymentError(error);
+  }
+};
+
 export const verifyPaymentService = async (data, userId) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = data;

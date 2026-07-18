@@ -13,6 +13,16 @@ export const createOrderRequest = async ({ course }) => {
     }
 };
 
+export const getMyPaymentsRequest = async () => {
+    try {
+        const response = await axios.get('/api/v1/payments/my');
+        return response.data;
+    } catch (error) {
+        console.log('error fetching purchases', error);
+        throw getErrorMessage(error);
+    }
+};
+
 export const verifyPaymentRequest = async ({
     razorpay_order_id,
     razorpay_payment_id,

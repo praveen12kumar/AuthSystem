@@ -1,6 +1,10 @@
 import express from 'express';
 
-import { createOrder, verifyPayment } from '../../controller/paymentController.js';
+import {
+  createOrder,
+  getMyPayments,
+  verifyPayment
+} from '../../controller/paymentController.js';
 import { isAuthenticated } from '../../middlewares/authMiddleware.js';
 import {
   createOrderSchema,
@@ -9,6 +13,8 @@ import {
 import { validate } from '../../validators/zodValidators.js';
 
 const router = express.Router();
+
+router.get('/my', isAuthenticated, getMyPayments);
 
 router.post('/orders', isAuthenticated, validate(createOrderSchema), createOrder);
 

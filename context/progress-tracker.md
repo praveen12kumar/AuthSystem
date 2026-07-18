@@ -4,10 +4,10 @@
 
 Auth, Tag, Course, Section, SubSection, and Payment/Enrollment are all functionally
 complete end-to-end, backend **and** frontend. Instructors upload a real lesson video per
-section and can rename/replace-video/delete it; students watch it inline on the course
-detail page and can now actually buy a course via Razorpay Checkout, with the course
-detail page's Enroll button showing a real "✓ Enrolled" state afterward. Review/
-CourseProgress are still open (see Next Up).
+section and can rename/replace-video/delete it; students buy a course via Razorpay
+Checkout and only then can actually watch its lessons (enrollment is now a real,
+enforced gate, not just "logged in"); a "My Purchases" page lists what a student has
+bought. Review/CourseProgress are still open (see Next Up).
 
 ## Completed
 
@@ -102,11 +102,18 @@ CourseProgress are still open (see Next Up).
   (`kunalkmeshram19@gmail.com`), reported they could still play course videos — live
   verification confirmed the old behavior (200) and the fix (403 for non-enrolled, 200
   for enrolled/owner/admin) directly against the real dev database.
+- **"My Purchases" page** — `GET /payments/my` (authenticated) returns the current
+  user's own `SUCCESS`-status payments via a new `paymentRepository.getByUser`;
+  `MyPurchasesContainer`/`MyPurchases` join those against the full course list
+  (`useCourses`, same id→map pattern as the catalog's `tagMap` — no backend `.populate()`)
+  to show thumbnail, title, amount paid, and purchase date, with a "Continue Learning"
+  link into the course. Reachable from the account dropdown in `Header.jsx`, route
+  `/my-purchases` behind a role-less `ProtectedRoute` (any logged-in user). Live-verified
+  with Playwright against the real dev DB and a genuine purchase record.
 
 ## In Progress
 
-- Nothing actively in progress. Payment/Enrollment (see Completed) is built and
-  live-verified but not yet committed/pushed.
+Nothing actively in progress.
 
 ## Next Up
 
@@ -122,8 +129,6 @@ Pick one (per `ai-workflow-rules.md` scoping rule — one at a time):
   is always created in `currency: 'INR'` at the raw numeric price — the amount actually
   charged doesn't match the displayed currency symbol. Needs a product decision (convert
   displayed price, or store/charge in the currency actually displayed) before fixing.
-- A "My Purchases" / order history page for students (Payment records exist but aren't
-  surfaced anywhere in the UI yet)
 
 ## Open Questions
 

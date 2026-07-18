@@ -4,6 +4,7 @@ import {
   GraduationCap,
   LayoutDashboard,
   LogOut,
+  ShoppingBag,
   User
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -104,6 +105,11 @@ const Header = () => {
                 <DropdownMenuItem asChild>
                   <Link to="/courses">
                     <BookOpen /> Explore Courses
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/my-purchases">
+                    <ShoppingBag /> My Purchases
                   </Link>
                 </DropdownMenuItem>
                 {canTeach && (

@@ -151,6 +151,11 @@ Client (React) --axios--> /api/v1/* (Express) --> service layer --> repository l
   `progress-tracker.md`.
 - Razorpay `receipt` is capped at 40 chars by Razorpay itself — built as
   `rcpt_${courseId.slice(-8)}_${Date.now()}`, not the full 24-char ObjectId.
+- `GET /payments/my` (authenticated) lists the caller's own `status: 'SUCCESS'` payments
+  — a `PENDING`/`FAILED` order never shows up as a "purchase." The frontend
+  (`MyPurchasesContainer`) resolves each payment's `course` id against the full course
+  list (`useCourses`), the same id→map pattern used for tag names elsewhere — there is
+  still no backend `.populate()`.
 
 ## Invariants
 
