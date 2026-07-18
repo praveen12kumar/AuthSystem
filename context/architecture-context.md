@@ -8,7 +8,16 @@
 - **Auth**: JWT (`jsonwebtoken`), stateless — no server-side sessions.
 - **Cache/rate-limiting**: Upstash Redis (REST client, not `ioredis`) — used only for
   OTP state, not for sessions or general caching.
-- **Email**: `nodemailer` + `ejs` templates (OTP, password reset).
+- **Email**: `nodemailer` + `ejs` templates (OTP, password reset), sent via Gmail's API
+  through OAuth2 (`GMAIL_USER`/`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/
+  `GOOGLE_REFRESH_TOKEN`), not raw SMTP with an app password. Two real, distinct
+  problems ruled out plain SMTP: (1) Gmail's own SMTP silently blocks/stalls logins
+  from cloud-provider IP ranges — invisible in local dev, only surfaced once deployed
+  on Render; (2) no third-party SMTP relay (tried: SMTP2GO) can send "from" a
+  `gmail.com` address at all, because `gmail.com`'s own DMARC record rejects mail
+  claiming to be from it unless sent through Google's real servers. OAuth2 sends
+  through those real servers as the actual account, so neither problem applies — and
+  it's free, unlike buying a domain to satisfy a relay's sender verification.
 - **File upload**: `multer` (memory storage, not disk) + `cloudinary` (image storage/CDN)
   — wired up for Course `thumbnail` and User `avatar`; see File Upload Model below.
 - **Payments**: `razorpay` (Standard Checkout) — order creation server-side, payment
