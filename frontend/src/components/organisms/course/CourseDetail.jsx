@@ -32,8 +32,6 @@ const CourseDetail = ({
   error,
   isOwner,
   isEnrolled,
-  onEnroll,
-  isEnrolling,
   reviews,
   reviewsLoading,
   canReview,
@@ -211,9 +209,10 @@ const CourseDetail = ({
                   </Link>
                 </Button>
               ) : (
-                <Button size="lg" onClick={onEnroll} disabled={isEnrolling}>
-                  <ShoppingCart />
-                  {isEnrolling ? 'Processing...' : 'Enroll Now'}
+                <Button asChild size="lg">
+                  <Link to={`/courses/${course._id}/checkout`}>
+                    <ShoppingCart /> Enroll Now
+                  </Link>
                 </Button>
               )}
               {isOwner && (

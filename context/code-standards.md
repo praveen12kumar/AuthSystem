@@ -218,11 +218,13 @@
   inline in a component — `window.Razorpay` after the first successful load, a shared
   in-flight promise for concurrent calls, so a second "Enroll" click doesn't inject the
   `<script>` tag twice.
-- **Payment orchestration logic lives in the Container, not the organism**: `handleEnroll`
-  (script load → create order → open Razorpay checkout → verify on the `handler`
-  callback) is all in `CourseDetailContainer.jsx`; `CourseDetail.jsx` only receives
-  `isEnrolled`/`onEnroll`/`isEnrolling` props — same Container/presentational split as
-  every other domain, no exception for payment flows.
+- **Payment orchestration logic lives in the Container, not the organism**:
+  `handleProceedToPayment` (script load → create order → open Razorpay checkout →
+  verify on the `handler` callback) is all in `CheckoutContainer.jsx`;
+  `CheckoutSummary.jsx` only receives `onProceed`/`isProcessing` props — same
+  Container/presentational split as every other domain, no exception for payment flows.
+  `CourseDetail.jsx`'s "Enroll Now" is a plain `<Link>` to `/courses/:id/checkout`, not
+  an `onClick` handler — it doesn't need to know anything about payments at all.
 
 ## Cross-cutting
 

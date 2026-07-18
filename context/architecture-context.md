@@ -175,14 +175,21 @@ Client (React) --axios--> /api/v1/* (Express) --> service layer --> repository l
 
 ## Payment Model
 
-- **Flow**: `POST /payments/orders {course}` (authenticated) → service loads the course,
-  rejects if the caller is the course's own instructor or already in
-  `studentsEnrolled`, computes `finalPrice` from `course.price`/`discount` server-side,
-  creates a Razorpay order (`amount` in paise, `currency: 'INR'`), and writes a `Payment`
-  document with `status: 'PENDING'`. The response (`orderId`, `amount`, `currency`,
-  `keyId`) is handed to the Razorpay Checkout.js widget on the frontend
-  (`loadRazorpayScript` + `new window.Razorpay({...}).open()`), which drives the actual
-  card/UPI/bank flow entirely outside this app.
+- **Flow**: clicking "Enroll Now" on `CourseDetail` navigates to `/courses/:id/checkout`
+  (`CheckoutContainer`/`CheckoutSummary`) — a review step (course summary, account
+  info, bill summary) before any payment is triggered, not an immediate charge. Its
+  "Proceed to Payment" button is what actually calls `POST /payments/orders {course}`
+  (authenticated) → service loads the course, rejects if the caller is the course's own
+  instructor or already in `studentsEnrolled`, computes `finalPrice` from
+  `course.price`/`discount` server-side, creates a Razorpay order (`amount` in paise,
+  `currency: 'INR'`), and writes a `Payment` document with `status: 'PENDING'`. The
+  response (`orderId`, `amount`, `currency`, `keyId`) is handed to the Razorpay
+  Checkout.js widget (`loadRazorpayScript` + `new window.Razorpay({...}).open()`), which
+  drives the actual card/UPI/bank flow entirely outside this app. The checkout page
+  itself redirects away (`useEffect`) if the visitor is already enrolled (→ the Course
+  Player) or is the course's own instructor (→ back to the course page) — the same two
+  rules `createOrderService` enforces server-side, checked again client-side purely for
+  UX (the backend is still the real gate).
 - On completion, Razorpay's client-side `handler` callback receives
   `{razorpay_order_id, razorpay_payment_id, razorpay_signature}` and the frontend posts
   it straight to `POST /payments/verify` — this callback is **not trusted on its own**,

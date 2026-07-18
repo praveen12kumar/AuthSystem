@@ -18,6 +18,9 @@ page in the app. Nothing from the original scope is unbuilt anymore — remainin
 entirely refinement (see Next Up). The backend also has its first automated tests now
 (Vitest + supertest + in-memory MongoDB, covering Auth) — see `ai-workflow-rules.md`
 Verification for the pattern; everything else is still manual-verification-only.
+Enrolling now goes through a real checkout/order-review page
+(`/courses/:id/checkout`, course summary + account info + bill summary) before opening
+Razorpay, instead of jumping straight from "Enroll Now" into the payment widget.
 
 ## Completed
 
@@ -226,6 +229,26 @@ Verification for the pattern; everything else is still manual-verification-only.
   pattern to extend for other domains, and `architecture-context.md` Stack/System
   Boundaries for the `app.js`/`index.js` split. Not yet covered: every other domain, and
   the frontend has no test suite at all yet.
+- **Checkout/order-review page** — prompted directly by the user, who shared a
+  competitor's checkout screenshot: "Enroll Now" no longer opens Razorpay immediately,
+  it navigates to `/courses/:id/checkout` (`CheckoutContainer`/`CheckoutSummary`) — a
+  review step showing the course, the buyer's account info (name/email/phone, phone
+  linking to Profile if not set), and a bill summary, with "Proceed to Payment" as the
+  actual trigger for order creation. The reference screenshot also had a coupon-code
+  field and multi-day "access plan" selection — both **deliberately excluded** per
+  explicit user decision: coupons need a whole new `Coupon` domain (already deferred
+  once before, during the AlgoCamp-inspired redesign), and access-duration plans imply
+  a fundamentally different product model than this app's pay-once/lifetime-access one.
+  Payment orchestration logic (script load → create order → open Razorpay → verify)
+  moved from `CourseDetailContainer` to `CheckoutContainer`, where it now actually
+  belongs; `CourseDetail.jsx`'s Enroll button is now a plain `<Link>`, no longer needs
+  to know anything about payments. The checkout page redirects away if the visitor is
+  already enrolled (→ Course Player) or is the course's own instructor (→ back to the
+  course page) — mirrors `createOrderService`'s server-side rules, checked again
+  client-side for UX only. Live-verified: real order creation from the new page (a real
+  Razorpay order + a real `PENDING` Payment record, cleaned up afterward), the Razorpay
+  widget opening with the correct price and pre-filled email, and both redirect guards
+  (already-enrolled student, course's own instructor).
 
 ## In Progress
 
@@ -248,6 +271,13 @@ Pick one (per `ai-workflow-rules.md` scoping rule — one at a time):
   is always created in `currency: 'INR'` at the raw numeric price — the amount actually
   charged doesn't match the displayed currency symbol. Needs a product decision (convert
   displayed price, or store/charge in the currency actually displayed) before fixing.
+- Coupon codes on checkout — deliberately deferred twice now (once during the AlgoCamp
+  redesign, once here). Would need a new `Coupon` domain: model, validation, redemption
+  logic wired into `createOrderService`'s price computation, and some way for an admin
+  to create codes.
+- Time-limited access plans (e.g. "400 days access") — a fundamentally different
+  product model than the current pay-once/lifetime-access one; would need an expiry
+  concept on enrollment, not just a UI addition. Not scoped or decided on at all yet.
 
 ## Open Questions
 

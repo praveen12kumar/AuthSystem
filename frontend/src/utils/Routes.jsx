@@ -10,6 +10,7 @@ import OneTimePasswordContainer from '@/pages/auth/OneTimePasswordContainer';
 import ResetPasswordContainer from '@/pages/auth/ResetPasswordContainer';
 import SignInContainer from '@/pages/auth/SignInContainer';
 import SignUpContainer  from '@/pages/auth/SignUpContainer';
+import CheckoutContainer from '@/pages/course/CheckoutContainer';
 import CourseCatalogContainer from '@/pages/course/CourseCatalogContainer';
 import CourseDetailContainer from '@/pages/course/CourseDetailContainer';
 import CoursePlayerContainer from '@/pages/course/CoursePlayerContainer';
@@ -34,6 +35,7 @@ export const AppRoutes = ()=>{
         <Route path='/' element={<Home/>}/>
         <Route path='/courses' element={<CourseCatalogContainer/>}/>
         <Route path='/courses/:id' element={<CourseDetailContainer/>}/>
+        <Route path='/courses/:id/checkout' element={<ProtectedRoute><CheckoutContainer/></ProtectedRoute>}/>
         <Route path='/courses/:id/learn' element={<ProtectedRoute><CoursePlayerContainer/></ProtectedRoute>}/>
         <Route path='/courses/:id/learn/:subSectionId' element={<ProtectedRoute><CoursePlayerContainer/></ProtectedRoute>}/>
         <Route path='/my-purchases' element={<ProtectedRoute><MyPurchasesContainer/></ProtectedRoute>}/>
